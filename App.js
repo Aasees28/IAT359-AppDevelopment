@@ -2,11 +2,16 @@ import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Feather from '@expo/vector-icons/Feather';
 
 import SignupScreen from './src/screens/SignupScreen.js';
 import WelcomeScreen from './src/screens/WelcomeScreen.js';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import TimerScreen from './src/screens/TimerScreen.js';
+import FolderScreen from './src/screens/FolderScreen.js';
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
 export default function App() {
   const isWeb = Platform.OS === 'web';
@@ -22,16 +27,41 @@ export default function App() {
               component={SignupScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen
-              name="Welcome"
-              component={WelcomeScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Home" component={HomeNavigator} options={{ headerShown: false }}/>
           </Stack.Navigator>
         </NavigationContainer>
       </View>
     </View>
   );
+}
+
+function HomeNavigator() {
+  return (
+    <Tab.Navigator 
+      initialRouteName='HomeTab'
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarIcon: ({ color, size }) => {
+          if (route.name == "HomeTab") {
+            return <Feather name="calendar" size={24} color="black" />
+          } else if (route.name == "TimerTab") {
+            return <Feather name="clock" size={24} color="black" />
+          } else if (route.name == "FolderTab") {
+            return <Feather name="folder" size={24} color="black" />
+          }
+        },
+        tabBarActiveTintColor: 'black',
+        tabBarInactiveTintColor: 'lightgrey',
+        tabBarStyle: { paddingTop: 8 },  
+      })}
+    >
+      <Tab.Screen name="HomeTab" component={WelcomeScreen}/>
+      <Tab.Screen name="TimerTab" component={TimerScreen}/>
+      <Tab.Screen name="FolderTab" component={FolderScreen}/>
+
+    </Tab.Navigator>
+  )
 }
 
 const styles = StyleSheet.create({

@@ -30,7 +30,7 @@ export default function SignInScreen({ navigation }) {
         />
         <TouchableOpacity
           style={styles.continueButton}
-          onPress={() => navigation.navigate('Welcome')}   // 👈 Add this line
+          onPress={() => navigation.navigate('Home')}   // 👈 Add this line
         >
           <Text style={styles.continueText}>continue</Text>
         </TouchableOpacity>
