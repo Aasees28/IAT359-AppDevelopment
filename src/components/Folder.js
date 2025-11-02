@@ -2,16 +2,21 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import Feather from '@expo/vector-icons/Feather';
 import { useNavigation } from "@react-navigation/native";
-import Header from "../components/Header";
 
-export default function FolderScreen({ route }) {
+export default function Folder({ item }) {
     const navigation = useNavigation();
-    const { item } = route.params;
-
+    const openFolder = () => {
+        navigation.navigate('FolderScreen', { item });
+    }
     return (
         <View>
-            <Header isBackOnly />
-            <Text>{item.name}</Text>
+            <TouchableOpacity onPress={openFolder} style={styles.container}>
+                <Text>{item.name}</Text>
+                <View style={styles.loadMore}>
+                    <Text>{item.data.length}</Text>
+                    <Feather name="chevron-right" size={24} color="black" />
+                </View>
+            </TouchableOpacity>
         </View> 
     )
 }
@@ -25,6 +30,10 @@ export const styles = StyleSheet.create({
         padding: 10,
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    loadMore:{
+        flexDirection: 'row',
         alignItems: 'center',
     }
 });

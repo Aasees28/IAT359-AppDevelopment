@@ -2,12 +2,13 @@ import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Feather from '@expo/vector-icons/Feather';
 
 import SignupScreen from './src/screens/SignupScreen.js';
 import WelcomeScreen from './src/screens/WelcomeScreen.js';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import TimerScreen from './src/screens/TimerScreen.js';
+import FoldersScreen from './src/screens/FoldersScreen.js';
 import FolderScreen from './src/screens/FolderScreen.js';
 
 const Stack = createNativeStackNavigator();
@@ -28,6 +29,7 @@ export default function App() {
               options={{ headerShown: false }}
             />
             <Stack.Screen name="Home" component={HomeNavigator} options={{ headerShown: false }}/>
+            <Stack.Screen name="FolderScreen" component={FolderScreen} options={{ headerShown: false }}/>
           </Stack.Navigator>
         </NavigationContainer>
       </View>
@@ -58,8 +60,7 @@ function HomeNavigator() {
     >
       <Tab.Screen name="HomeTab" component={WelcomeScreen}/>
       <Tab.Screen name="TimerTab" component={TimerScreen}/>
-      <Tab.Screen name="FolderTab" component={FolderScreen}/>
-
+      <Tab.Screen name="FolderTab" component={FoldersScreen}/>
     </Tab.Navigator>
   )
 }

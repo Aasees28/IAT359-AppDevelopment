@@ -1,11 +1,13 @@
 import Feather from '@expo/vector-icons/Feather';
 import { View, StyleSheet, Text, Touchable, TouchableOpacity } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 
 export default function Header({ isBackOnly = false, title }) {
+    const navigation = useNavigation();
     return (
         <View style={styles.container}>
             { isBackOnly ? (
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Feather name="chevron-left" size={24} color="black" />
                 </TouchableOpacity>
             ) : (
