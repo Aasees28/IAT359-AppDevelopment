@@ -14,12 +14,11 @@ export default function FolderScreen() {
     useEffect(() => {
         (async () => {
             const storedFolders = await getItem("folders");
-            console.log("Fetched folders:", storedFolders);
             if (storedFolders) {
                 setFolders(storedFolders);
             }
         })();
-    }, []);
+    }, [folders]);
 
     const addFolder = async () => {
         if (!newFolderName.trim()) return;
@@ -56,18 +55,20 @@ export default function FolderScreen() {
                             <View style={styles.modalContent}>
                                 <View style={styles.modalHeader}>
                                   <Text style={styles.modalTitle}>Add folder</Text>
-                                  <TouchableOpacity title="Hide Modal" onPress={() => setModalVisible(false)}>
-                                      <Feather name="x" size={24} color="black" />
-                                  </TouchableOpacity>
                               </View>
                               <View style={{ marginTop: 20 }}>
                                   <Text>Folder name:</Text>
                                   <TextInput onChangeText={setNewFolderName} style={styles.inputContainer} value={newFolderName} />
                               </View>
                               {/* folder color selection here */}
-                              <TouchableOpacity style={styles.createFolderButton} onPress={addFolder}>
-                                <Text>Create</Text>
-                              </TouchableOpacity>
+                              <View style={styles.buttonContainer}>
+                                    <TouchableOpacity style={styles.modalButton} onPress={addFolder}>
+                                        <Text>Create</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.modalButton} onPress={() => setModalVisible(false)}>
+                                        <Text>Cancel</Text>
+                                    </TouchableOpacity>
+                              </View>
                             </View>
                         </View>
                     </TouchableWithoutFeedback>
@@ -106,7 +107,14 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    createFolderButton: {
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 10,
+    },
+    modalButton: {
+        flex: 1,
         marginVertical: 20,
         padding: 10,
         borderWidth: 1,
