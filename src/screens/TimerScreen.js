@@ -1,19 +1,501 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import Header from "../components/Header";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { SafeAreaView, View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, TouchableWithoutFeedback, Keyboard, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import Feather from '@expo/vector-icons/Feather';
+import Header from '../components/Header';
+import { getItem } from '../utils/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function TimerScreen() {
+  const [focusHours, setFocusHours] = useState('0');
+  const [focusMinutes, setFocusMinutes] = useState('25');
+  const [restMinutes, setRestMinutes] = useState('5');
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [session, setSession] = useState('idle');
+  const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [justFinished, setJustFinished] = useState(false);
+  const [folders, setFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState(null);
+
+  const intervalRef = useRef(null);
+  const flatListRef = useRef(null);
+  const [currentOffset, setCurrentOffset] = useState(0);
+
+useFocusEffect(
+  useCallback(() => {
+    const fetchFolders = async () => {
+      const storedFolders = await getItem("folders");
+      if (storedFolders) setFolders(storedFolders);
+      else setFolders([]);
+    };
+
+    fetchFolders();
+
+    const f = folders.filter((item) => item.name == selectedFolder);
+
+    if (f == null || f.length == 0) {
+      setSelectedFolder("");
+    }
+  }, [])
+);
+
+  const formatTime = (secs) => {
+    const hh = Math.floor(secs / 3600);
+    const mm = Math.floor((secs % 3600) / 60);
+    const ss = secs % 60;
+    const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+    return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+  };
+
+  const getBackgroundColor = () => {
+    if (justFinished) return styles.bgFinished.backgroundColor;
+    if (session === 'idle') return styles.bgIdle.backgroundColor;
+    if (isPaused) return styles.bgPaused.backgroundColor;
+    if (session === 'focus') return styles.bgFocus.backgroundColor;
+    if (session === 'rest') return styles.bgRest.backgroundColor;
+    return styles.bgIdle.backgroundColor;
+  };
+
+  const getFocusSeconds = () =>
+    parseInt(focusHours || 0) * 3600 + parseInt(focusMinutes || 0) * 60;
+  const getRestSeconds = () => parseInt(restMinutes || 0) * 60;
+
+  const handleStart = async () => {
+    if (!selectedFolder) {
+      alert('Please select a folder first.');
+      return;
+    }
+
+    if (session === 'idle' || session === 'rest') {
+      setSession('focus');
+      setSecondsLeft(getFocusSeconds());
+    } else {
+      setSession('rest');
+      setSecondsLeft(getRestSeconds());
+    }
+    setIsRunning(true);
+    setIsPaused(false);
+
+    // Save active folder
+    await AsyncStorage.setItem('activeFolder', selectedFolder.name);
+  };
+
+
+  const handlePause = () => {
+    setIsPaused(true);
+    setIsRunning(false);
+  };
+
+  const handleResume = () => {
+    if (session === 'idle') {
+      handleStart();
+      return;
+    }
+    setIsPaused(false);
+    setIsRunning(true);
+  };
+
+  const switchSession = (from) => {
+    if (from === 'focus') {
+      setSession('rest');
+      setSecondsLeft(getRestSeconds());
+    } else {
+      setSession('focus');
+      setSecondsLeft(getFocusSeconds());
+    }
+    setIsRunning(true);
+    setIsPaused(false);
+  };
+
+  const handleSkip = () => {
+    if (session === 'idle') {
+      setSession('rest');
+      setSecondsLeft(getRestSeconds());
+      setIsRunning(true);
+      setIsPaused(false);
+      return;
+    }
+    switchSession(session);
+  };
+
+  useEffect(() => {
+    if (isRunning) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
+        setSecondsLeft((s) => s - 1);
+      }, 1000);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (
+      secondsLeft <= 0 &&
+      (session === 'focus' || session === 'rest') &&
+      (isRunning || isPaused)
+    ) {
+      setJustFinished(true);
+      setIsRunning(false);
+      setTimeout(async () => {
+        setJustFinished(false);
+        await AsyncStorage.removeItem('activeFolder');
+        switchSession(session);
+      }, 800);
+    }
+  }, [secondsLeft, session, isRunning, isPaused]);
+
+  const alertResetFolder = (newFolder) => {
+    Alert.alert(
+      'Reset Timer?',
+      'Changing folders will reset your current timer. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: () => {
+            setSelectedFolder(newFolder);
+            setSession('idle');
+            setIsRunning(false);
+            setIsPaused(false);
+            setSecondsLeft(0);
+          },
+        },
+      ]
+    );
+  };
+
   return (
-    <View style={styles.container}>
-        <Header title={"Timer"}/>
-    </View>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: getBackgroundColor() }]}
+    >
+      <View style={styles.frame}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.inner}>
+            <Text style={styles.title}>Timer</Text>
+
+            {/* Folder Selector */}
+            {folders.length > 0 && (
+              <View style={styles.folderSelectorWrapper}>
+                {/* Left Arrow */}
+                <TouchableOpacity
+                  style={styles.arrowButton}
+                  onPress={() => {
+                    flatListRef.current?.scrollToOffset({
+                      offset: Math.max(currentOffset - 120, 0),
+                      animated: true,
+                    });
+                    setCurrentOffset(Math.max(currentOffset - 120, 0));
+                  }}
+                >
+                  <Feather name="chevron-left" size={20} color="#0b2b2f" />
+                </TouchableOpacity>
+
+                {/* Scrollable Folder List */}
+                <View style={styles.folderSelector}>
+                  <FlatList
+                    ref={flatListRef}
+                    data={folders}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyExtractor={(item, index) => `${item.name}-${index}`}
+                    onScroll={(e) =>
+                      setCurrentOffset(e.nativeEvent.contentOffset.x)
+                    }
+                    scrollEventThrottle={16}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[
+                          styles.folderButton,
+                          selectedFolder?.name === item.name &&
+                            styles.folderButtonSelected,
+                        ]}
+                        onPress={() => {
+                          if (isRunning || isPaused) {
+                            alertResetFolder(item);
+                          } else {
+                            setSelectedFolder(item);
+                          }
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.folderText,
+                            selectedFolder?.name === item.name &&
+                              styles.folderTextSelected,
+                          ]}
+                        >
+                          {item.name}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+
+                {/* Right Arrow */}
+                <TouchableOpacity
+                  style={styles.arrowButton}
+                  onPress={() => {
+                    flatListRef.current?.scrollToOffset({
+                      offset: currentOffset + 120,
+                      animated: true,
+                    });
+                    setCurrentOffset(currentOffset + 120);
+                  }}
+                >
+                  <Feather name="chevron-right" size={20} color="#0b2b2f" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Time Inputs */}
+            <View style={styles.timeSetupContainer}>
+              {/* Focus Section */}
+              <View style={styles.sectionContainer}>
+                <Text style={styles.mainTitle}>Focus</Text>
+                <View style={styles.subInputsRow}>
+                  <View style={styles.inputGroupQuarter}>
+                    <Text style={styles.subLabel}>Hours</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={focusHours}
+                      onChangeText={(t) =>
+                        setFocusHours(t.replace(/[^0-9]/g, ''))
+                      }
+                      keyboardType="numeric"
+                      placeholder="0"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroupQuarter}>
+                    <Text style={styles.subLabel}>Minutes</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={focusMinutes}
+                      onChangeText={(t) =>
+                        setFocusMinutes(t.replace(/[^0-9]/g, ''))
+                      }
+                      keyboardType="numeric"
+                      placeholder="25"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Rest Section */}
+              <View style={styles.sectionContainer}>
+                <Text style={styles.mainTitle}>Rest</Text>
+                <View style={styles.subInputsRow}>
+                  <View style={styles.inputGroupHalf}>
+                    <Text style={styles.subLabel}>Minutes</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={restMinutes}
+                      onChangeText={(t) =>
+                        setRestMinutes(t.replace(/[^0-9]/g, ''))
+                      }
+                      keyboardType="numeric"
+                      placeholder="5"
+                    />
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Timer Box */}
+            <View style={styles.timerBox}>
+              <Text style={styles.sessionLabel}>
+                {session === 'idle'
+                  ? 'Idle'
+                  : session === 'focus'
+                  ? 'Focus'
+                  : 'Rest'}
+              </Text>
+              <Text style={styles.timeText}>
+                {formatTime(Math.max(0, secondsLeft))}
+              </Text>
+              {selectedFolder && (
+                <Text style={styles.folderTag}>{selectedFolder.name}</Text>
+              )}
+            </View>
+
+            {/* Buttons */}
+            <View style={styles.buttonsRow}>
+              <TouchableOpacity
+                style={[styles.button, styles.startButton]}
+                onPress={handleStart}
+              >
+                <Text style={styles.buttonText}>Start</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.pauseButton]}
+                onPress={handlePause}
+              >
+                <Text style={styles.buttonText}>Pause</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.resumeButton]}
+                onPress={handleResume}
+              >
+                <Text style={styles.buttonText}>Resume</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.skipButton]}
+                onPress={handleSkip}
+              >
+                <Text style={styles.buttonText}>Skip</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: 'white',
-    }
+  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
+  frame: {
+    flex: 1,
+    margin: 15,
+    borderWidth: 1,
+    borderColor: '#666',
+    borderRadius: 4,
+    padding: 12,
+  },
+  inner: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 70,
+    paddingBottom: 80,
+    justifyContent: 'space-between',
+  },
+  title: {
+    fontSize: 50,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 8,
+    color: '#0b2b2f',
+  },
+  folderSelectorWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  arrowButton: {
+    paddingHorizontal: 1,
+  },
+  folderSelector: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginHorizontal: 4,
+  },
+  folderButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d0d7de',
+    marginHorizontal: 4,
+  },
+  folderButtonSelected: {
+    backgroundColor: '#0b2b2f',
+  },
+  folderText: {
+    color: '#0b2b2f',
+    fontWeight: '600',
+  },
+  folderTextSelected: {
+    color: '#fff',
+  },
+  folderTag: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#0b2b2f',
+    fontStyle: 'italic',
+  },
+  timeSetupContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  sectionContainer: {
+    flex: 0.5,
+    alignItems: 'center',
+  },
+  mainTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0b2b2f',
+    marginBottom: 8,
+  },
+  subInputsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  subLabel: {
+    fontSize: 14,
+    marginBottom: 6,
+    color: '#102a43',
+    textAlign: 'center',
+  },
+  inputGroupQuarter: {
+    flex: 0.5,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  inputGroupHalf: {
+    flex: 1,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  input: {
+    width: '100%',
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d0d7de',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  timerBox: {
+    alignItems: 'center',
+    marginVertical: 20,
+    padding: 18,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    borderWidth: 1,
+    borderColor: '#666',
+  },
+  sessionLabel: { fontSize: 16, marginBottom: 8, fontWeight: '600' },
+  timeText: { fontSize: 48, fontWeight: '800' },
+  buttonsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  button: {
+    flex: 1,
+    padding: 9,
+    marginHorizontal: 4,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  startButton: { backgroundColor: '#2ecc2e' },
+  pauseButton: { backgroundColor: '#f1c40f' },
+  resumeButton: { backgroundColor: '#27ae60' },
+  skipButton: { backgroundColor: '#3498db' },
+  buttonText: { fontSize: 12, color: '#fff', fontWeight: '700' },
+  bgIdle: { backgroundColor: '#D3D3D3' },
+  bgFocus: { backgroundColor: '#e2ffcd' },
+  bgRest: { backgroundColor: '#e2f6fd' },
+  bgPaused: { backgroundColor: '#f5ffc3' },
+  bgFinished: { backgroundColor: '#ffdfe7' },
 });
