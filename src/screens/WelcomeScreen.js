@@ -1,75 +1,272 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, ScrollView } from "react-native";
+import { CalendarList } from "react-native-calendars";
+import { useFocusEffect } from "@react-navigation/native";
+import CheckBox from "react-native-check-box";
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Feather from '@expo/vector-icons/Feather';
+import { storeItem, getItem, removeItem } from "../utils/storage";
+
+const colors = ["#f04c41", "#f0bb41", "#aaf041", "#41d3f0", "#416cf0", "#9241f0", "#f041bb"]
+const now = new Date();
+const year = now.getFullYear();
+const month = String(now.getMonth() + 1).padStart(2, '0');
+const day = String(now.getDate()).padStart(2, '0');
 
 export default function WelcomeScreen() {
+  const [selectedDate, setSelectedDate] = useState(`${year}-${month}-${day}`);
+  const [today, setToday] = useState(`${year}-${month}-${day}`);
+  const [dots, setDots] = useState({});
+  const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
+
+  const randomColor = () => {
+    return colors[Math.floor(Math.random() * 7)];
+  }
+
+  const onCheck = async (folderName, todoName) => {
+    const updated = events.map((item) => {
+      if (item.name === folderName) {
+        return {
+          ...item,
+          todos: item.todos.map((todo) => {
+            if (todo.name == todoName) {
+              return {
+                ...todo,
+                checked: !(todo.checked)
+              }
+            } else {
+              return todo;
+            }
+          })
+        }
+      } else {
+        return item;
+      }
+    });
+
+    setEvents(updated)
+
+    // update filteredEvents
+    filterEvents(updated);
+    console.log(updated)
+    await storeItem("folders", updated);
+
+  }
+
+  const onSelectDate = (date) => {
+    const selected = date.dateString;
+
+    setDots((prevDots) => {
+      const newDots = { ...prevDots };
+
+      if (selectedDate && newDots[selectedDate]) {
+        newDots[selectedDate] = { ...newDots[selectedDate], selected: false };
+      }
+
+      if (today != selected) {
+        newDots[selected] = { ...newDots[selected], selected: true };
+      }
+      setSelectedDate(selected);
+      return newDots;
+    });
+  };
+
+  const filterEvents = (e) => {
+    const filtered = [];
+    e.forEach((item) => {
+      const todos = [];
+      item.todos.forEach((todo) => {
+        if (todo.date === selectedDate) {
+          todos.push({name: todo.name, checked: todo.checked});
+        }
+      })
+      filtered.push({name: item.name, todos: todos})
+    })
+    setFilteredEvents(filtered)
+  }
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        // for debugging; if no data, uncomment below to set up and check any checkbox to store in storage then comment
+        // const res = [
+        //   { 
+        //     name: "CMPT403", 
+        //     notes: [],
+        //     todos: [
+        //       { date: "2025-11-08", name: "Assignment 4", checked: false },
+        //       { date: "2025-11-09", name: "Midterm", checked: false }
+        //     ]
+        //   },
+        //   { 
+        //     name: "CMPT454", 
+        //     notes: [],
+        //     todos: [
+        //       { date: "2025-11-09", name: "Assignment 5", checked: false },
+        //       { date: "2025-11-09", name: "Project A", checked: false }
+        //     ]
+        //   },
+        // ]
+
+        // get folders data to list out daily deadlines
+        const res = await getItem("folders");
+        console.log("res: ", res)
+
+        if (!res) {
+          setEvents([]);
+          setDots({});
+        } else {
+          setEvents(res);
+
+          // set up dots for calendar
+          const newDots = {};
+          res.forEach((folder) => {
+            const c = randomColor();
+            folder.todos.forEach((todo) => {
+              if (!newDots[todo.date]) {
+                newDots[todo.date] = { dots: [] };
+              }
+              newDots[todo.date].dots.push({ key: `${todo.name}-${folder.name}`, color: c });
+            });
+          });
+
+          setDots(newDots);
+
+          // update filteredEvents
+          filterEvents(res);
+        }
+      })()
+    }, [])
+  )
+
+  useEffect(() => {
+    filterEvents(events);
+  }, [selectedDate])
+
   return (
     <View style={styles.container}>
-      {/* Outer border frame */}
-      <View style={styles.frame}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.menuIcon}>
-            <View style={styles.bar} />
-            <View style={styles.bar} />
-            <View style={styles.bar} />
-          </View>
-          <TouchableOpacity style={styles.taskButton}>
-            <Text style={styles.taskText}>Today's Tasks</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Legend Section */}
-        <View style={styles.legend}>
-          <View style={styles.legendRow}>
-            <View style={[styles.colorBox, { backgroundColor: "#f4a6a6" }]} />
-            <Text style={styles.legendText}>course 1</Text>
-            <View style={[styles.colorBox, { backgroundColor: "#b4e197" }]} />
-            <Text style={styles.legendText}>course 2</Text>
-            <View style={[styles.colorBox, { backgroundColor: "#a3c7f7" }]} />
-            <Text style={styles.legendText}>course 3</Text>
-          </View>
-          <View style={styles.legendRow}>
-            <View style={[styles.colorBox, { backgroundColor: "#555" }]} />
-            <Text style={styles.legendText}>event 1</Text>
-            <View style={[styles.colorBox, { backgroundColor: "#999" }]} />
-            <Text style={styles.legendText}>event 2</Text>
-          </View>
-        </View>
-
-        {/* Calendar */}
-        <View style={styles.calendar}>
-          <Text style={styles.monthTitle}>January / 01</Text>
-
-          <View style={styles.calendarGrid}>
-            {/* Placeholder for calendar cells */}
-            <Text style={styles.placeholderText}>[ Calendar Grid Here ]</Text>
-          </View>
-        </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Welcome 😎,</Text>
+        <TouchableOpacity>
+          <Feather name="user" size={24} color="black" />
+        </TouchableOpacity>
       </View>
+
+      <ScrollView style={styles.body}>
+        <CalendarList 
+          theme={theme}
+          horizontal
+          staticHeader
+          pagingEnabled
+          pastScrollRange={12}
+          futureScrollRange={12}
+          markingType={'multi-dot'}
+          markedDates={dots}
+          onDayPress={onSelectDate}
+          hideArrows
+        />
+
+        <View style={styles.todoContainer}>
+          {filteredEvents.map((item, i) => {
+            return item.todos.length > 0 ? (
+              <View key={i} style={styles.todoItemContainer}>
+                <View style={styles.todoItemHeader}>
+                  <Text style={[styles.todoHeaderTitle, { backgroundColor: "#fff6c2"}]}>{item.name}</Text>
+                  <Text>{item.todos.length}</Text>
+                </View>
+                <View style={styles.todos}>
+                  {item.todos.map((todo, i) => (
+                    <View style={styles.todoItem} key={i}>
+                      <CheckBox
+                        isChecked={todo.checked}
+                        onClick={() => onCheck(item.name, todo.name)}
+                        checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
+                        unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
+                      />
+                      <Text>{todo.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <View key={i}></View>
+            )
+          })}
+        </View>
+      </ScrollView>
     </View>
   );
 }
+
+const theme = {
+  'stylesheet.calendar.header': {
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    monthText: {
+      color: '#000',
+      fontSize: 18,
+      fontWeight: 'bold',
+    },
+  },
+  'stylesheet.day.basic': {
+    today: {},  // keep this to overwrite the default styling
+    todayText: {
+      width: 25,
+      height: 25,
+      backgroundColor: '#000',
+      borderRadius: 99,
+      color: 'white',
+      borderColor: 'black',
+      borderWidth: 2,
+      textAlign: 'center',
+    },
+    selected: {},  // keep this to overwrite the default styling
+    selectedText: {
+      width: 25,
+      height: 25,
+      borderWidth: 2,
+      borderColor: '#000',
+      backgroundColor: 'transparent', 
+      borderRadius: 99,
+      color: 'black',
+      textAlign: 'center',
+    },
+    base: {
+      weight: 50,
+      height: 80,
+      gap: 5,
+    },
+  },
+  'stylesheet.calendar.main': {
+    container: {
+      paddingBottom: 0,
+      marginBottom: 0,
+    },
+  },
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    padding: 20,
-    paddingTop: 70, // 🔹 add this line to push everything down
-  },
-  frame: {
-    flex: 1,
-    margin: 8,
-    borderWidth: 1,
-    borderColor: "#666",
-    borderRadius: 4,
-    padding: 12,
   },
   header: {
+    paddingTop: 70, // 🔹 add this line to push everything down
+    paddingHorizontal: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 18,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   menuIcon: {
     width: 28,
@@ -81,56 +278,41 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: "#444",
   },
-  taskButton: {
-    borderWidth: 1,
-    borderColor: "#666",
-    borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  taskText: {
-    fontSize: 14,
-    color: "#333",
-    fontWeight: "500",
-  },
-  legend: {
-    marginBottom: 24,
-  },
-  legendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    marginBottom: 8,
-  },
-  colorBox: {
-    width: 16,
-    height: 10,
-    borderRadius: 2,
-    marginRight: 4,
-  },
-  legendText: {
-    fontSize: 13,
-    color: "#555",
-    marginRight: 10,
-  },
-  calendar: {
-    flex: 1,
-  },
-  monthTitle: {
+  headerText: {
     fontSize: 18,
-    fontWeight: "500",
-    color: "#333",
-    marginBottom: 12,
+    fontWeight: 'bold',
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingRight: 5
   },
-  calendarGrid: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
+  body: {
+    paddingTop: 30,
   },
-  placeholderText: {
-    color: "#aaa",
+  todoContainer: {
+    padding: 20,
+    gap: 10,
   },
+  todoItemContainer: {
+    marginBottom: 10,
+  },
+  todoItemHeader: {
+    marginBottom: 10,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center'
+  },
+  todoHeaderTitle: {
+    fontWeight: 'bold',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  todos: {
+
+  },
+  todoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  }
 });

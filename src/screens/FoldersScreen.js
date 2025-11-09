@@ -12,33 +12,31 @@ import {
   Alert,
 } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
-import { useFocusEffect } from "@react-navigation/native";
-
 import Header from "../components/Header";
 import Folder from "../components/Folder";
 import { storeItem, getItem, removeItem } from "../utils/storage";
 
-export default function FolderScreen() {
+export default function FoldersScreen() {
   const [folders, setFolders] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [activeFolder, setActiveFolder] = useState(null);
 
-    useEffect(() => {
-        (async () => {
-            const storedFolders = await getItem("folders");
-            if (storedFolders) {
-                setFolders(storedFolders);
-            }
-        })();
-    }, [folders]);
+  useEffect(() => {
+    (async () => {
+      const storedFolders = await getItem("folders");
+      if (storedFolders) {
+        setFolders(storedFolders);
+      }
+    })();
+  }, [folders]);
 
   // Add folder
   const addFolder = async () => {
     const trimmedName = newFolderName.trim();
     if (!trimmedName) return;
 
-    const newFolder = { name: trimmedName, data: [] };
+    const newFolder = { name: trimmedName, todos: [], notes: [] };
     const updatedFolders = [...folders, newFolder];
 
     setFolders(updatedFolders);
@@ -62,27 +60,29 @@ export default function FolderScreen() {
 
   // Delete all folders
   const deleteAllFolders = async () => {
-    Alert.alert("Delete All Folders", "Are you sure you want to delete all folders?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await removeItem("folders");
-            await removeItem("activeFolder");
-            setFolders([]);
-            setActiveFolder(null);
-            Alert.alert("Deleted", "All folders have been deleted.");
-          } catch (error) {
-            console.error("Error deleting folders:", error);
-          }
+    Alert.alert(
+      "Delete All Folders",
+      "Are you sure you want to delete all folders?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await removeItem("folders");
+              await removeItem("activeFolder");
+              setFolders([]);
+              setActiveFolder(null);
+              Alert.alert("Deleted", "All folders have been deleted.");
+            } catch (error) {
+              console.error("Error deleting folders:", error);
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
-
-  const onAddFolder = () => setModalVisible(true);
 
   return (
     <View style={styles.container}>
@@ -100,7 +100,7 @@ export default function FolderScreen() {
       </View>
 
       {/* Floating Add Folder Button */}
-      <TouchableOpacity style={styles.addFolder} onPress={onAddFolder}>
+      <TouchableOpacity style={styles.addFolder} onPress={() => setModalVisible(true)}>
         <Feather name="folder-plus" size={24} color="black" />
       </TouchableOpacity>
 
@@ -135,7 +135,10 @@ export default function FolderScreen() {
                 />
               </View>
               <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.modalButton} onPress={addFolder}>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={addFolder}
+                >
                   <Text>Create</Text>
                 </TouchableOpacity>
                 <TouchableOpacity

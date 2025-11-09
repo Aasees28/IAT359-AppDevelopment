@@ -13,7 +13,7 @@ export default function Folder({ item }) {
             <TouchableOpacity onPress={openFolder} style={styles.container}>
                 <Text>{item.name}</Text>
                 <View style={styles.loadMore}>
-                    <Text>{item.data.length}</Text>
+                    <Text>{item.notes.length + item.todos.length}</Text>
                     <Feather name="chevron-right" size={24} color="black" />
                 </View>
             </TouchableOpacity>
