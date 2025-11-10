@@ -5,10 +5,11 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import CheckBox from "react-native-check-box";
+import { Image } from "expo-image";
 import Header from "../components/Header";
 import { storeItem, getItem, clearAll, removeItem } from "../utils/storage";
 
-export default function FolderScreen({ route }) {
+export default function FolderScreen({ navigation, route }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [todoModalVisible, setTodoModalVisible] = useState(false);
     const [newTodoName, setNewTodoName] = useState("");
@@ -17,8 +18,6 @@ export default function FolderScreen({ route }) {
 
     const { name } = route.params.item;
 
-    const navigation = useNavigation();
-
     useFocusEffect(
         useCallback(() => {
             (async () => {
@@ -26,6 +25,7 @@ export default function FolderScreen({ route }) {
                 if (res) {
                     const found = res.find((item) => item.name === name);
                     setData(found);
+                    console.log(data)
                 }
             })();
         }, [])
@@ -34,7 +34,6 @@ export default function FolderScreen({ route }) {
     const handleDeleteFolder = async () => {
         const storedFolders = await getItem("folders");
         const updatedFolders = storedFolders.filter(folder => folder.name !== name);
-        console.log("Deleted folder ", updatedFolders);
         await storeItem("folders", updatedFolders);
         setModalVisible(false);
         navigation.goBack();
@@ -81,12 +80,21 @@ export default function FolderScreen({ route }) {
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                     <Text style={styles.title}>📖Lecture note / photo</Text>
-                    <TouchableOpacity onPress={() => {}}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Camera' , { data })}>
                         <Feather name="plus-circle" size={24} color="black" />
                     </TouchableOpacity>
                 </View>
                 
                 {/* photo previews / gallery here */}
+                <View style={styles.photosContainer}>
+                    {data.notes.map((item, i) => (
+                        <Image
+                            source={{ uri: item.uri }}
+                            contentFit="cover"
+                            style={styles.image}
+                        />
+                    ))}                    
+                </View>
             </View>
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -328,10 +336,20 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 10,
     },
-    todoName: {
-        
-    },
+    todoName: {},
     datePicker: {
         marginTop: 5,
-    }
+    },
+    photosContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        paddingHorizontal: 20,
+        paddingTop: 10,
+    },
+    image: {
+        width: 100,
+        height: 100,
+        borderRadius: 8,
+    },
 });
