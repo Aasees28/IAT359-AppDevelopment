@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { storeItem } from "../utils/storage";
+import { setDoc, doc, getDoc } from "firebase/firestore";
+import { db } from "../Firebase/firebaseConfig"; 
 
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,  Modal,  TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -14,10 +16,18 @@ export default function SignInScreen({ navigation }) {
   const [firstName, setFirstName] = useState(""); 
   const [lastName, setLastName] = useState("");
 
-
 const handleLogin = async () => {
   try {
-    await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user; // ✅ this line is required
+
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (userDoc.exists()) {
+      const { firstName } = userDoc.data();
+      await storeItem("userName", firstName);
+    }
+
+    console.log("✅ Logged in & name loaded");
   } catch (error) {
     let message = "Something went wrong. Please try again.";
 
@@ -48,9 +58,21 @@ const handleSignUp = async () => {
   }
 
   try {
-    await createUserWithEmailAndPassword(auth, email, password);
-    await storeItem("userName", `${firstName}`);
-    console.log("✅ Account created");
+    // Create user in Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Save user info to Firestore
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      firstName: firstName,
+      email: email,
+      createdAt: new Date()
+    });
+
+    // Optionally also store locally (for offline use)
+    await storeItem("userName", firstName);
+
+    console.log("✅ Account created & name stored in Firestore");
     setModalVisible(false);
     navigation.navigate("Home");
   } catch (error) {
@@ -72,7 +94,6 @@ const handleSignUp = async () => {
     Alert.alert("Sign Up Error", message);
   }
 };
-
 
   return (
     <View style={styles.container}>

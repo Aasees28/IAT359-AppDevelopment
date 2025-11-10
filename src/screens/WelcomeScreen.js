@@ -7,7 +7,8 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Feather from '@expo/vector-icons/Feather';
 import { storeItem, getItem, removeItem } from "../utils/storage";
 import { signOut } from "firebase/auth";
-import { auth } from "../Firebase/firebaseConfig";
+import { auth, db } from "../Firebase/firebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 
 const colors = ["#f04c41", "#f0bb41", "#aaf041", "#41d3f0", "#416cf0", "#9241f0", "#f041bb"]
@@ -95,8 +96,27 @@ export default function WelcomeScreen() {
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const name = await getItem("userName");
-        if (name) setUserName(name);
+        // Try Firestore first, then local storage as fallback
+        const user = auth.currentUser;
+        if (user) {
+          try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+              const { firstName } = userDoc.data();
+              setUserName(firstName);
+              await storeItem("userName", firstName); // keep synced locally
+            } else {
+              console.log("⚠️ No Firestore record found, using cached name");
+              const cachedName = await getItem("userName");
+              if (cachedName) setUserName(cachedName);
+            }
+          } catch (error) {
+            console.log("❌ Error fetching Firestore name:", error.message);
+          }
+        } else {
+          console.log("⚠️ No user logged in");
+        }
+
         // for debugging; if no data, uncomment below to set up and check any checkbox to store in storage then comment
         // const res = [
         //   { 
@@ -166,15 +186,18 @@ export default function WelcomeScreen() {
             {menuVisible && (
               <View style={styles.dropdown}>
                 <TouchableOpacity
-                  onPress={async () => {
-                    try {
-                      await signOut(auth);
-                      console.log("✅ User signed out");
-                    } catch (error) {
-                      console.log("❌ Error signing out:", error.message);
-                    }
-                    setMenuVisible(false);
-                  }}
+                    onPress={async () => {
+                      try {
+                        await signOut(auth);
+                        console.log("✅ User signed out");
+                        await removeItem("userName"); // 👈 clear old name
+                        await removeItem("folders");  // optional — if you want per-user folders
+                        navigation.replace("Signup"); // 👈 navigate back to signup/login
+                      } catch (error) {
+                        console.log("❌ Error signing out:", error.message);
+                      }
+                      setMenuVisible(false);
+                    }}
                 >
                   <Text style={styles.dropdownText}>Sign Out</Text>
                 </TouchableOpacity>
