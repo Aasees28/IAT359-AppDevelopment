@@ -23,10 +23,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    import("firebase/auth").then(({ signOut }) => {
-      signOut(auth).catch(() => {});
-    });
-
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -49,9 +45,14 @@ export default function App() {
       <View style={isWeb ? styles.screen : styles.mobileScreen}>
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="Home" component={HomeNavigator} />
-            <Stack.Screen name="FolderScreen" component={FolderScreen} />
+            {user ? (
+              <>
+                <Stack.Screen name="Home" component={HomeNavigator} />
+                <Stack.Screen name="FolderScreen" component={FolderScreen} />
+              </>
+            ) : (
+              <Stack.Screen name="Signup" component={SignupScreen} />
+            )}
           </Stack.Navigator>
         </NavigationContainer>
       </View>

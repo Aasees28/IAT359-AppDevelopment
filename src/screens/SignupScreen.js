@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
+import { storeItem } from "../utils/storage";
 
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,  Modal,  TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -17,7 +18,6 @@ export default function SignInScreen({ navigation }) {
 const handleLogin = async () => {
   try {
     await signInWithEmailAndPassword(auth, email, password);
-    navigation.navigate("Home");
   } catch (error) {
     let message = "Something went wrong. Please try again.";
 
@@ -49,6 +49,7 @@ const handleSignUp = async () => {
 
   try {
     await createUserWithEmailAndPassword(auth, email, password);
+    await storeItem("userName", `${firstName}`);
     console.log("✅ Account created");
     setModalVisible(false);
     navigation.navigate("Home");
@@ -118,10 +119,6 @@ const handleSignUp = async () => {
         >
           <Text style={styles.signUpButtonText}>Sign Up</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate("Home")}>
-          <Text style={styles.skipText}>skip for now</Text>
-        </TouchableOpacity>
       </View>
 
 {/* 🔹 SIGN UP MODAL */}
@@ -186,7 +183,7 @@ const handleSignUp = async () => {
             style={styles.modalBackButton}
             onPress={() => setModalVisible(false)}
           >
-            <Text style={styles.modalButtonText}>Cancel</Text>
+            <Text style={styles.modalBackText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -245,7 +242,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 0.5,
-    borderColor: '#ccc',
+    borderColor: '#b6b6b6ff',
     borderRadius: 6,
     padding: 10,
     fontSize: 14,
@@ -259,7 +256,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#969696ff',
     alignSelf: 'center',
     width: '70%',
   },
@@ -271,7 +268,7 @@ const styles = StyleSheet.create({
   signUpButton: {
     backgroundColor: '#fff9e3ff',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#969696ff',
     borderRadius: 6,
     paddingVertical: 10,
     alignItems: 'center',
@@ -283,14 +280,6 @@ const styles = StyleSheet.create({
   signUpButtonText: {
     color: '#333',
     fontWeight: '500',
-  },
-
-  skipText: {
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-    color: '#555',
-    marginTop: 10,
-    fontSize: 13,
   },
 
   modalOverlay: { 
@@ -330,6 +319,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 15,
+    marginBottom: 15,
   },
   modalCreateButton: { 
     backgroundColor: '#333',
@@ -338,16 +328,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     flex: 1,
     marginRight: 8,
+    marginTop: 10,
     alignItems: 'center',
   },
   modalBackButton: { 
-    backgroundColor: '#888',
+    backgroundColor: '#d7d7d7ff',
+    color: "black" ,
     borderRadius: 6,
     paddingVertical: 10,
     paddingHorizontal: 20,
     flex: 1,
     alignItems: 'center',
+    marginTop: 10,
+    borderWidth: 1,
   },
+
+    modalBackText: { 
+    color: '#000000ff',
+    fontWeight: '500',
+    
+  },
+
   modalButtonText: {
     color: '#fff',
     fontWeight: '500',

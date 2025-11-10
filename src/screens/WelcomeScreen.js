@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList,  TouchableWithoutFeedback, ScrollView, Alert } from "react-native";
 import { CalendarList } from "react-native-calendars";
 import { useFocusEffect } from "@react-navigation/native";
 import CheckBox from "react-native-check-box";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Feather from '@expo/vector-icons/Feather';
 import { storeItem, getItem, removeItem } from "../utils/storage";
+import { signOut } from "firebase/auth";
+import { auth } from "../Firebase/firebaseConfig";
+import { useNavigation } from "@react-navigation/native";
 
 const colors = ["#f04c41", "#f0bb41", "#aaf041", "#41d3f0", "#416cf0", "#9241f0", "#f041bb"]
 const now = new Date();
@@ -14,11 +17,14 @@ const month = String(now.getMonth() + 1).padStart(2, '0');
 const day = String(now.getDate()).padStart(2, '0');
 
 export default function WelcomeScreen() {
+  const navigation = useNavigation();
+  const [menuVisible, setMenuVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(`${year}-${month}-${day}`);
   const [today, setToday] = useState(`${year}-${month}-${day}`);
   const [dots, setDots] = useState({});
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
+  const [userName, setUserName] = useState("");
 
   const randomColor = () => {
     return colors[Math.floor(Math.random() * 7)];
@@ -89,6 +95,8 @@ export default function WelcomeScreen() {
   useFocusEffect(
     useCallback(() => {
       (async () => {
+        const name = await getItem("userName");
+        if (name) setUserName(name);
         // for debugging; if no data, uncomment below to set up and check any checkbox to store in storage then comment
         // const res = [
         //   { 
@@ -145,13 +153,36 @@ export default function WelcomeScreen() {
   }, [selectedDate])
 
   return (
-    <View style={styles.container}>
+    <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+      <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Welcome 😎,</Text>
-        <TouchableOpacity>
-          <Feather name="user" size={24} color="black" />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Welcome {userName ? userName : ""},</Text>
+          <View style={{ position: 'relative' }}>
+            <TouchableOpacity onPress={() => setMenuVisible(!menuVisible)}>
+              <Feather name="user" size={28} color="black" />
+            </TouchableOpacity>
+
+            {menuVisible && (
+              <View style={styles.dropdown}>
+                <TouchableOpacity
+                  onPress={async () => {
+                    try {
+                      await signOut(auth);
+                      console.log("✅ User signed out");
+                    } catch (error) {
+                      console.log("❌ Error signing out:", error.message);
+                    }
+                    setMenuVisible(false);
+                  }}
+                >
+                  <Text style={styles.dropdownText}>Sign Out</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+
       </View>
 
       <ScrollView style={styles.body}>
@@ -197,7 +228,8 @@ export default function WelcomeScreen() {
         </View>
       </ScrollView>
     </View>
-  );
+  </TouchableWithoutFeedback>
+);
 }
 
 const theme = {
@@ -314,5 +346,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  }
+  },
+
+dropdown: {
+  position: 'absolute',
+  top: 40,
+  right: 2,
+  backgroundColor: '#ffe7e7ff' ,
+  borderWidth: 1,
+  borderRadius: 8,
+  paddingVertical: 6,
+  width: 100,
+  shadowColor: '#000',
+  shadowOpacity: 0.2,
+  shadowOffset: { width: 0, height: 2 },
+  shadowRadius: 4,
+  elevation: 3,
+  zIndex: 10,
+},
+dropdownText: {
+  fontSize: 16,
+  color: 'black',
+  paddingVertical: 6,
+  paddingHorizontal: 17,
+  textAlign: 'left',
+}
+
 });
