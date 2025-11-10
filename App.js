@@ -1,10 +1,13 @@
-import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Platform, ActivityIndicator} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Feather from '@expo/vector-icons/Feather';
+import { onAuthStateChanged } from 'firebase/auth';
+import { signOut } from "firebase/auth";
 
+import { auth } from './src/Firebase/firebaseConfig';
 import SignupScreen from './src/screens/SignupScreen.js';
 import WelcomeScreen from './src/screens/WelcomeScreen.js';
 import TimerScreen from './src/screens/TimerScreen.js';
@@ -16,20 +19,39 @@ const Tab = createBottomTabNavigator();
 
 export default function App() {
   const isWeb = Platform.OS === 'web';
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    import("firebase/auth").then(({ signOut }) => {
+      signOut(auth).catch(() => {});
+    });
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={isWeb ? styles.page : styles.mobilePage}>
       {isWeb && <View style={styles.phoneFrame} />}
       <View style={isWeb ? styles.screen : styles.mobileScreen}>
         <NavigationContainer>
-          <Stack.Navigator initialRouteName="Signup">
-            <Stack.Screen
-              name="Signup"
-              component={SignupScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen name="Home" component={HomeNavigator} options={{ headerShown: false }}/>
-            <Stack.Screen name="FolderScreen" component={FolderScreen} options={{ headerShown: false }}/>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="Home" component={HomeNavigator} />
+            <Stack.Screen name="FolderScreen" component={FolderScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </View>
