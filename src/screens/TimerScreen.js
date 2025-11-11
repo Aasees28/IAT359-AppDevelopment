@@ -61,25 +61,46 @@ useFocusEffect(
     parseInt(focusHours || 0) * 3600 + parseInt(focusMinutes || 0) * 60;
   const getRestSeconds = () => parseInt(restMinutes || 0) * 60;
 
-  const handleStart = async () => {
-    if (!selectedFolder) {
-      alert('Please select a folder first.');
-      return;
-    }
+const handleStart = async () => {
+  if (!selectedFolder) {
+    Alert.alert(
+      'No Folder Selected',
+      'You haven’t selected a folder. Do you want to proceed anyway?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Proceed Anyway',
+          onPress: async () => {
+            if (session === 'idle' || session === 'rest') {
+              setSession('focus');
+              setSecondsLeft(getFocusSeconds());
+            } else {
+              setSession('rest');
+              setSecondsLeft(getRestSeconds());
+            }
+            setIsRunning(true);
+            setIsPaused(false);
+          },
+        },
+      ]
+    );
+    return;
+  }
 
-    if (session === 'idle' || session === 'rest') {
-      setSession('focus');
-      setSecondsLeft(getFocusSeconds());
-    } else {
-      setSession('rest');
-      setSecondsLeft(getRestSeconds());
-    }
-    setIsRunning(true);
-    setIsPaused(false);
+  // Normal start flow if folder is selected
+  if (session === 'idle' || session === 'rest') {
+    setSession('focus');
+    setSecondsLeft(getFocusSeconds());
+  } else {
+    setSession('rest');
+    setSecondsLeft(getRestSeconds());
+  }
+  setIsRunning(true);
+  setIsPaused(false);
 
-    // Save active folder
-    await AsyncStorage.setItem('activeFolder', selectedFolder.name);
-  };
+  await AsyncStorage.setItem('activeFolder', selectedFolder.name);
+};
+
 
 
   const handlePause = () => {
@@ -171,93 +192,180 @@ useFocusEffect(
     );
   };
 
-  return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: getBackgroundColor() }]}
+return (
+  <SafeAreaView style={styles.container}>
+    <View
+      style={[
+        styles.outerContainer,
+        session === 'focus' && styles.outerFocus,
+        session === 'rest' && styles.outerRest,
+        isPaused && styles.outerPaused,
+      ]}
     >
       <View style={styles.frame}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.inner}>
             <Text style={styles.title}>Timer</Text>
 
-            {/* Folder Selector */}
-            {folders.length > 0 && (
-              <View style={styles.folderSelectorWrapper}>
-                {/* Left Arrow */}
-                <TouchableOpacity
-                  style={styles.arrowButton}
-                  onPress={() => {
-                    flatListRef.current?.scrollToOffset({
-                      offset: Math.max(currentOffset - 120, 0),
-                      animated: true,
-                    });
-                    setCurrentOffset(Math.max(currentOffset - 120, 0));
-                  }}
-                >
-                  <Feather name="chevron-left" size={20} color="#0b2b2f" />
-                </TouchableOpacity>
+              <View style={[styles.sectionFrame, styles.folderBox]}>
+                <Text style={styles.mainTitle}>Folders</Text>
 
-                {/* Scrollable Folder List */}
-                <View style={styles.folderSelector}>
-                  <FlatList
-                    ref={flatListRef}
-                    data={folders}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(item, index) => `${item.name}-${index}`}
-                    onScroll={(e) =>
-                      setCurrentOffset(e.nativeEvent.contentOffset.x)
-                    }
-                    scrollEventThrottle={16}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={[
-                          styles.folderButton,
-                          selectedFolder?.name === item.name &&
-                            styles.folderButtonSelected,
-                        ]}
-                        onPress={() => {
-                          if (isRunning || isPaused) {
-                            alertResetFolder(item);
-                          } else {
-                            setSelectedFolder(item);
-                          }
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.folderText,
-                            selectedFolder?.name === item.name &&
-                              styles.folderTextSelected,
-                          ]}
-                        >
-                          {item.name}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                </View>
+                {folders.length > 0 ? (
+                  <View style={styles.folderSelectorWrapper}>
+                    {/* Left Arrow */}
+                    <TouchableOpacity
+                      style={styles.arrowButton}
+                      onPress={() => {
+                        flatListRef.current?.scrollToOffset({
+                          offset: Math.max(currentOffset - 120, 0),
+                          animated: true,
+                        });
+                        setCurrentOffset(Math.max(currentOffset - 120, 0));
+                      }}
+                    >
+                      <Feather name="chevron-left" size={20} color="#0b2b2f" />
+                    </TouchableOpacity>
 
-                {/* Right Arrow */}
-                <TouchableOpacity
-                  style={styles.arrowButton}
-                  onPress={() => {
-                    flatListRef.current?.scrollToOffset({
-                      offset: currentOffset + 120,
-                      animated: true,
-                    });
-                    setCurrentOffset(currentOffset + 120);
-                  }}
-                >
-                  <Feather name="chevron-right" size={20} color="#0b2b2f" />
-                </TouchableOpacity>
+                    {/* Scrollable Folder List */}
+                    <View style={styles.folderSelector}>
+                      <FlatList
+                        ref={flatListRef}
+                        data={folders}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(item, index) => `${item.name}-${index}`}
+                        onScroll={(e) =>
+                          setCurrentOffset(e.nativeEvent.contentOffset.x)
+                        }
+                        scrollEventThrottle={16}
+                        renderItem={({ item }) => (
+                          <TouchableOpacity
+                            style={[
+                              styles.folderButton,
+                              selectedFolder?.name === item.name &&
+                                styles.folderButtonSelected,
+                            ]}
+                            onPress={() => {
+                              if (isRunning || isPaused) {
+                                alertResetFolder(item);
+                              } else {
+                                if (selectedFolder?.name === item.name) {
+                                  setSelectedFolder(null); // Deselect if clicked again
+                                } else {
+                                  setSelectedFolder(item);
+                                }
+                              }
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.folderText,
+                                selectedFolder?.name === item.name &&
+                                  styles.folderTextSelected,
+                              ]}
+                            >
+                              {item.name}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      />
+                    </View>
+
+                    {/* Right Arrow */}
+                    <TouchableOpacity
+                      style={styles.arrowButton}
+                      onPress={() => {
+                        flatListRef.current?.scrollToOffset({
+                          offset: currentOffset + 120,
+                          animated: true,
+                        });
+                        setCurrentOffset(currentOffset + 120);
+                      }}
+                    >
+                      <Feather name="chevron-right" size={20} color="#0b2b2f" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <Text style={styles.emptyFolderText}>No folders yet</Text>
+                )}
               </View>
-            )}
+
+
+            {/* Timer Box */}
+            <View
+              style={[
+                styles.timerBox,
+                session === 'focus' && styles.shadowFocus,
+                session === 'rest' && styles.shadowRest,
+                session === 'idle' && styles.shadowIdle,
+                isPaused && styles.shadowPaused,
+              ]}
+            >
+              <Text style={styles.sessionLabel}>
+                {session === 'idle'
+                  ? 'Idle'
+                  : session === 'focus'
+                  ? 'Focus'
+                  : 'Rest'}
+              </Text>
+
+              <Text style={styles.timeText}>
+                {formatTime(Math.max(0, secondsLeft))}
+              </Text>
+
+              <Text style={styles.folderTag}>
+                {selectedFolder ? selectedFolder.name : 'Select Folder'}
+              </Text>
+            </View>
+
+
+            {/* Buttons */}
+            <View style={styles.buttonsRow}>
+              <TouchableOpacity
+                style={[styles.button, styles.startButton]}
+                onPress={handleStart}
+              >
+                <Text style={styles.buttonText}>Start</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  isPaused ? styles.resumeButton : styles.pauseButton,
+                ]}
+                onPress={() => {
+                  if (isPaused) {
+                    handleResume();
+                  } else {
+                    handlePause();
+                  }
+                }}
+              >
+                <Text style={styles.buttonText}>
+                  {isPaused ? 'Resume' : 'Pause'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.skipButton]}
+                onPress={handleSkip}
+              >
+                <Text style={styles.buttonText}>Skip</Text>
+              </TouchableOpacity>
+            </View>
+
 
             {/* Time Inputs */}
             <View style={styles.timeSetupContainer}>
               {/* Focus Section */}
-              <View style={styles.sectionContainer}>
+              <View
+                style={[
+                  styles.sectionContainer,
+                  styles.sectionFrame,
+                  session === 'focus' && styles.activeFocusBox,
+                  isPaused && styles.pausedBox,
+                ]}
+              >
                 <Text style={styles.mainTitle}>Focus</Text>
                 <View style={styles.subInputsRow}>
                   <View style={styles.inputGroupQuarter}>
@@ -265,9 +373,7 @@ useFocusEffect(
                     <TextInput
                       style={styles.input}
                       value={focusHours}
-                      onChangeText={(t) =>
-                        setFocusHours(t.replace(/[^0-9]/g, ''))
-                      }
+                      onChangeText={(t) => setFocusHours(t.replace(/[^0-9]/g, ''))}
                       keyboardType="numeric"
                       placeholder="0"
                     />
@@ -278,9 +384,7 @@ useFocusEffect(
                     <TextInput
                       style={styles.input}
                       value={focusMinutes}
-                      onChangeText={(t) =>
-                        setFocusMinutes(t.replace(/[^0-9]/g, ''))
-                      }
+                      onChangeText={(t) => setFocusMinutes(t.replace(/[^0-9]/g, ''))}
                       keyboardType="numeric"
                       placeholder="25"
                     />
@@ -289,7 +393,15 @@ useFocusEffect(
               </View>
 
               {/* Rest Section */}
-              <View style={styles.sectionContainer}>
+              <View
+                style={[
+                  styles.sectionContainer,
+                  styles.sectionFrame,
+                  session === 'rest' && styles.activeRestBox,
+                  isPaused && styles.pausedBox,
+
+                ]}
+              >
                 <Text style={styles.mainTitle}>Rest</Text>
                 <View style={styles.subInputsRow}>
                   <View style={styles.inputGroupHalf}>
@@ -297,9 +409,7 @@ useFocusEffect(
                     <TextInput
                       style={styles.input}
                       value={restMinutes}
-                      onChangeText={(t) =>
-                        setRestMinutes(t.replace(/[^0-9]/g, ''))
-                      }
+                      onChangeText={(t) => setRestMinutes(t.replace(/[^0-9]/g, ''))}
                       keyboardType="numeric"
                       placeholder="5"
                     />
@@ -308,86 +418,90 @@ useFocusEffect(
               </View>
             </View>
 
-            {/* Timer Box */}
-            <View style={styles.timerBox}>
-              <Text style={styles.sessionLabel}>
-                {session === 'idle'
-                  ? 'Idle'
-                  : session === 'focus'
-                  ? 'Focus'
-                  : 'Rest'}
-              </Text>
-              <Text style={styles.timeText}>
-                {formatTime(Math.max(0, secondsLeft))}
-              </Text>
-              {selectedFolder && (
-                <Text style={styles.folderTag}>{selectedFolder.name}</Text>
-              )}
-            </View>
-
-            {/* Buttons */}
-            <View style={styles.buttonsRow}>
-              <TouchableOpacity
-                style={[styles.button, styles.startButton]}
-                onPress={handleStart}
-              >
-                <Text style={styles.buttonText}>Start</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.pauseButton]}
-                onPress={handlePause}
-              >
-                <Text style={styles.buttonText}>Pause</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.resumeButton]}
-                onPress={handleResume}
-              >
-                <Text style={styles.buttonText}>Resume</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.skipButton]}
-                onPress={handleSkip}
-              >
-                <Text style={styles.buttonText}>Skip</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </TouchableWithoutFeedback>
+      </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
+  // ---- Containers ----
+  container: {
+    flex: 1,
+  },
+  outerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 2,
+    backgroundColor: '#d2d2d2ff', 
+  },
+  outerFocus: {
+    backgroundColor: '#dafcc4ff',
+  },
+  outerRest: {
+    backgroundColor: '#d4f2fbff',
+  },
+  outerPaused: {
+    backgroundColor: '#fbffafff',
+  },
+
   frame: {
     flex: 1,
+    width: '92%',
     margin: 15,
     borderWidth: 1,
     borderColor: '#666',
-    borderRadius: 4,
-    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#f1f1f1ff',
+    padding: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
+
   inner: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 70,
+    paddingTop: 50,
     paddingBottom: 80,
     justifyContent: 'space-between',
+    
   },
+
+  // ---- Title ----
   title: {
-    fontSize: 50,
+    fontSize: 45,
     fontWeight: '700',
+    borderWidth: 1,
+    padding: 10,
     textAlign: 'center',
-    marginBottom: 8,
-    color: '#0b2b2f',
+    marginBottom: 20,
+    borderRadius: 12,
+    color: '#000',
+    backgroundColor: '#fff'
   },
+
+  // ---- Folder Selector ----
+  folderBox: {
+    backgroundColor: '#fff',
+    marginBottom: 10,
+    marginTop: 6,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+  },
+
   folderSelectorWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
+    marginLeft: 30,
+    marginRight: 15,
   },
   arrowButton: {
     paddingHorizontal: 1,
@@ -399,15 +513,15 @@ const styles = StyleSheet.create({
   },
   folderButton: {
     backgroundColor: '#fff',
+    borderWidth: 1,
+    borderRadius: 5,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d0d7de',
+    borderColor: '#000',
     marginHorizontal: 4,
   },
   folderButtonSelected: {
-    backgroundColor: '#0b2b2f',
+    backgroundColor: '#000000ff',
   },
   folderText: {
     color: '#0b2b2f',
@@ -422,6 +536,79 @@ const styles = StyleSheet.create({
     color: '#0b2b2f',
     fontStyle: 'italic',
   },
+
+  // ---- Timer Box ----
+  timerBox: {
+    alignItems: 'center',
+    marginVertical: 10,
+    padding: 18,
+    marginBottom: 20,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 1)',
+    borderWidth: 1,
+    borderColor: '#666',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  sessionLabel: {
+    fontSize: 16,
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  timeText: {
+    fontSize: 48,
+    fontWeight: '800',
+  },
+
+    shadowFocus: {
+    shadowColor: '#8ecf63', // green glow
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+
+  },
+
+  shadowRest: {
+    shadowColor: '#69b2cf', // blue glow
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+  },
+
+  shadowIdle: {
+    shadowColor: '#aaaaaa', // neutral gray
+  },
+
+  shadowPaused: {
+    shadowColor: '#d8be54', // gold/yellow glow
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+  },
+
+  // ---- Buttons ----
+  buttonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: 20,
+  },
+  button: {
+    flex: 1,
+    padding: 9,
+    marginHorizontal: 2,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  startButton: { backgroundColor: '#27a327a1' },
+  pauseButton: { backgroundColor: '#d8be54ff' },
+  resumeButton: { backgroundColor: '#d952c0ff' },
+  skipButton: { backgroundColor: '#5c96bcff' },
+  buttonText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '700',
+  },
+
+  // ---- Focus/Rest Sections ----
   timeSetupContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -432,6 +619,29 @@ const styles = StyleSheet.create({
     flex: 0.5,
     alignItems: 'center',
   },
+  sectionFrame: {
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    borderWidth: 1,
+    borderColor: '#666',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  activeFocusBox: {
+    backgroundColor: '#e2ffcd',
+    borderColor: '#8ecf63',
+  },
+  activeRestBox: {
+    backgroundColor: '#e2f6fd',
+    borderColor: '#69b2cf',
+  },
+  pausedBox: {
+    opacity: 0.7,
+  },
+
+  // ---- Inputs ----
   mainTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -469,33 +679,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
-  timerBox: {
-    alignItems: 'center',
-    marginVertical: 20,
-    padding: 18,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    borderWidth: 1,
-    borderColor: '#666',
-  },
-  sessionLabel: { fontSize: 16, marginBottom: 8, fontWeight: '600' },
-  timeText: { fontSize: 48, fontWeight: '800' },
-  buttonsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  button: {
-    flex: 1,
-    padding: 9,
-    marginHorizontal: 4,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  startButton: { backgroundColor: '#2ecc2e' },
-  pauseButton: { backgroundColor: '#f1c40f' },
-  resumeButton: { backgroundColor: '#27ae60' },
-  skipButton: { backgroundColor: '#3498db' },
-  buttonText: { fontSize: 12, color: '#fff', fontWeight: '700' },
-  bgIdle: { backgroundColor: '#D3D3D3' },
-  bgFocus: { backgroundColor: '#e2ffcd' },
-  bgRest: { backgroundColor: '#e2f6fd' },
-  bgPaused: { backgroundColor: '#f5ffc3' },
-  bgFinished: { backgroundColor: '#ffdfe7' },
 });
