@@ -92,6 +92,7 @@ export default function FolderScreen({ navigation, route }) {
                             source={{ uri: item.uri }}
                             contentFit="cover"
                             style={styles.image}
+                            key={i}
                         />
                     ))}                    
                 </View>
@@ -110,7 +111,8 @@ export default function FolderScreen({ navigation, route }) {
                             <Text style={styles.statusText}>In progress</Text>
                         </View>
                         {data.todos.map((todo, i) => 
-                            {return !(todo.checked) && (<View key={i} style={styles.todoContainer}>
+                            {return !(todo.checked) && (
+                            <View key={i} style={styles.todoContainer}>
                                 <CheckBox
                                     isChecked={todo.checked}
                                     onClick={() => {}}
@@ -127,7 +129,8 @@ export default function FolderScreen({ navigation, route }) {
                             <Text style={styles.statusText}>Done</Text>
                         </View>
                         {data.todos.map((todo, i) => 
-                            {return todo.checked && (<View key={i} style={styles.todoContainer}>
+                            {return todo.checked && (
+                            <View key={i} style={styles.todoContainer}>
                                 <CheckBox
                                     isChecked={todo.checked}
                                     onClick={() => {}}
