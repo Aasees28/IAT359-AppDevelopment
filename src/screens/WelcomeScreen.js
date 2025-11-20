@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList,  TouchableWithoutFeedback, ScrollView, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList,  TouchableWithoutFeedback, ScrollView, Alert, Modal } from "react-native";
 import { CalendarList } from "react-native-calendars";
 import { useFocusEffect } from "@react-navigation/native";
 import CheckBox from "react-native-check-box";
@@ -20,6 +20,7 @@ const day = String(now.getDate()).padStart(2, '0');
 export default function WelcomeScreen() {
   const navigation = useNavigation();
   const [menuVisible, setMenuVisible] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [selectedDate, setSelectedDate] = useState(`${year}-${month}-${day}`);
   const [today, setToday] = useState(`${year}-${month}-${day}`);
   const [dots, setDots] = useState({});
@@ -56,7 +57,6 @@ export default function WelcomeScreen() {
 
     // update filteredEvents
     filterEvents(updated);
-    console.log(updated)
     await storeItem("folders", updated);
 
   }
@@ -77,6 +77,8 @@ export default function WelcomeScreen() {
       setSelectedDate(selected);
       return newDots;
     });
+
+    setExpanded(true);
   };
 
   const filterEvents = (e) => {
@@ -91,6 +93,29 @@ export default function WelcomeScreen() {
       filtered.push({name: item.name, todos: todos})
     })
     setFilteredEvents(filtered)
+  }
+
+  const formatDateForModal = (date) => {
+    const d = date.split('-')
+    const selected = new Date(d[0], d[1]-1, d[2]);
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    return `${days[selected.getDay()]} ${months[selected.getMonth()]} ${selected.getDate()}, ${selected.getFullYear()}`
+  }
+
+  const nextDate = () => {
+    const selected = new Date(selectedDate);
+    selected.setDate(selected.getDate() + 1);
+
+    setSelectedDate(selected.toISOString().split('T')[0]);
+  }
+
+  const prevDate = () => {
+    const selected = new Date(selectedDate);
+    selected.setDate(selected.getDate() - 1);
+
+    setSelectedDate(selected.toISOString().split('T')[0]);
   }
 
   useFocusEffect(
@@ -116,26 +141,6 @@ export default function WelcomeScreen() {
         } else {
           console.log("⚠️ No user logged in");
         }
-
-        // for debugging; if no data, uncomment below to set up and check any checkbox to store in storage then comment
-        // const res = [
-        //   { 
-        //     name: "CMPT403", 
-        //     notes: [],
-        //     todos: [
-        //       { date: "2025-11-08", name: "Assignment 4", checked: false },
-        //       { date: "2025-11-09", name: "Midterm", checked: false }
-        //     ]
-        //   },
-        //   { 
-        //     name: "CMPT454", 
-        //     notes: [],
-        //     todos: [
-        //       { date: "2025-11-09", name: "Assignment 5", checked: false },
-        //       { date: "2025-11-09", name: "Project A", checked: false }
-        //     ]
-        //   },
-        // ]
 
         // get folders data to list out daily deadlines
         const res = await getItem("folders");
@@ -204,11 +209,60 @@ export default function WelcomeScreen() {
               </View>
             )}
           </View>
-
-
       </View>
 
-      <ScrollView style={styles.body}>
+      <Modal
+        transparent={true}
+        visible={expanded}
+        onRequestClose={() => {
+            setExpanded(!expanded);
+        }}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.todoContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setExpanded(false)}>
+                <Feather name="x" size={26} color="black" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.todoHeader}>
+              <TouchableOpacity onPress={prevDate}>
+                <Feather name="chevron-left" size={26} color="black" />
+              </TouchableOpacity>
+              <Text style={styles.selectedDate}>{formatDateForModal(selectedDate)}</Text>
+              <TouchableOpacity onPress={nextDate}>
+                <Feather name="chevron-right" size={26} color="black" />
+              </TouchableOpacity>
+            </View>
+            {filteredEvents.map((item, i) => {
+              return item.todos.length > 0 ? (
+                <View key={i} style={styles.todoItemContainer}>
+                  <View style={styles.todoItemHeader}>
+                    <Text style={[styles.todoHeaderTitle, { backgroundColor: "#fff6c2"}]}>{item.name}</Text>
+                  </View>
+                  <View style={styles.todos}>
+                    {item.todos.map((todo, i) => (
+                      <View style={styles.todoItem} key={i}>
+                        <CheckBox
+                          isChecked={todo.checked}
+                          onClick={() => onCheck(item.name, todo.name)}
+                          checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
+                          unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
+                        />
+                        <Text>{todo.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : (
+                <View key={i}></View>
+              )
+            })}
+          </View>
+        </View>
+      </Modal>
+
+      <View style={styles.body}>
         <CalendarList 
           theme={theme}
           horizontal
@@ -221,35 +275,7 @@ export default function WelcomeScreen() {
           onDayPress={onSelectDate}
           hideArrows
         />
-
-        <View style={styles.todoContainer}>
-          {filteredEvents.map((item, i) => {
-            return item.todos.length > 0 ? (
-              <View key={i} style={styles.todoItemContainer}>
-                <View style={styles.todoItemHeader}>
-                  <Text style={[styles.todoHeaderTitle, { backgroundColor: "#fff6c2"}]}>{item.name}</Text>
-                  <Text>{item.todos.length}</Text>
-                </View>
-                <View style={styles.todos}>
-                  {item.todos.map((todo, i) => (
-                    <View style={styles.todoItem} key={i}>
-                      <CheckBox
-                        isChecked={todo.checked}
-                        onClick={() => onCheck(item.name, todo.name)}
-                        checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
-                        unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
-                      />
-                      <Text>{todo.name}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : (
-              <View key={i}></View>
-            )
-          })}
-        </View>
-      </ScrollView>
+      </View>
     </View>
   </TouchableWithoutFeedback>
 );
@@ -294,7 +320,7 @@ const theme = {
     },
     base: {
       weight: 50,
-      height: 80,
+      height: 70,
       gap: 5,
     },
   },
@@ -341,20 +367,58 @@ const styles = StyleSheet.create({
     paddingRight: 5
   },
   body: {
+    flex: 1,
     paddingTop: 30,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)'
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  todoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 15,
+  },  
+  todoWrapper: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 12,
+    width: '90%',
+    height: '70%'
   },
   todoContainer: {
     padding: 20,
+    backgroundColor: 'white',
     gap: 10,
+    borderRadius: 30, 
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 12,
+    width: '90%',
+    height: '60%'
   },
+  selectedDate: {
+    fontSize: 18,
+    fontWeight: 'bold'
+  },  
   todoItemContainer: {
     marginBottom: 10,
   },
   todoItemHeader: {
     marginBottom: 10,
     flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center'
   },
   todoHeaderTitle: {
     fontWeight: 'bold',
@@ -363,7 +427,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   todos: {
-
+    marginBottom: 5,
   },
   todoItem: {
     flexDirection: 'row',

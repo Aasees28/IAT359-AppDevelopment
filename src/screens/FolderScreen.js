@@ -87,7 +87,7 @@ export default function FolderScreen({ navigation, route }) {
                 
                 {/* photo previews / gallery here */}
                 <View style={styles.photosContainer}>
-                    {data.notes.map((item, i) => (
+                    {data.notes && data.notes.map((item, i) => (
                         <Image
                             source={{ uri: item.uri }}
                             contentFit="cover"
@@ -110,7 +110,7 @@ export default function FolderScreen({ navigation, route }) {
                         <View style={[styles.statusTag, { backgroundColor: '#FFEFE0' }]}>
                             <Text style={styles.statusText}>In progress</Text>
                         </View>
-                        {data.todos.map((todo, i) => 
+                        {data.todos && data.todos.map((todo, i) => 
                             {return !(todo.checked) && (
                             <View key={i} style={styles.todoContainer}>
                                 <CheckBox
@@ -128,7 +128,7 @@ export default function FolderScreen({ navigation, route }) {
                         <View style={[styles.statusTag, { backgroundColor: '#C9F0CF' }]}>
                             <Text style={styles.statusText}>Done</Text>
                         </View>
-                        {data.todos.map((todo, i) => 
+                        {data.todos && data.todos.map((todo, i) => 
                             {return todo.checked && (
                             <View key={i} style={styles.todoContainer}>
                                 <CheckBox
