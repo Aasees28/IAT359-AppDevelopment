@@ -1,23 +1,31 @@
-import { CameraView, useCameraPermissions } from "expo-camera";
-import { useEvent } from "expo";
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import { useRef, useState } from "react";
 import { Alert, Button, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { Image } from "expo-image";
 import Feather from "@expo/vector-icons/Feather";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { getItem, storeItem } from "../utils/storage";
+import { useVideoPlayer, VideoView } from "expo-video";
 
 export default function CameraScreen({ route, navigation }) {
     const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+    const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
 
     const ref = useRef(null);
     const [uri, setUri] = useState(null);
 
     const [facing, setFacing] = useState("back");
+    const [mode, setMode] = useState("video");
+    const [isRecording, setIsRecording] = useState(false);
 
     const { data } = route.params;
+    const player = useVideoPlayer(uri, (player) => {
+        player.loop = true;
+        player.play();
+    });
 
-    if (!cameraPermission) {
+    if (!cameraPermission || ! microphonePermission) {
         return null;
     }
 
@@ -32,6 +40,17 @@ export default function CameraScreen({ route, navigation }) {
         );
     }
 
+    if (!microphonePermission.granted) {
+        return (
+            <View style={styles.container}>
+                <Text style={{ textAlign: "center" }}>
+                    We need your permission to use the microphone
+                </Text>
+                <Button onPress={requestMicrophonePermission} title="Grant permission" />
+            </View>
+        );
+    }
+
     const takePicture = async () => {
         const photo = await ref.current?.takePictureAsync();
         if (photo?.uri) {
@@ -39,9 +58,37 @@ export default function CameraScreen({ route, navigation }) {
         }
     };
 
+    const startRecording = async () => {
+        if (ref.current) {
+            setIsRecording(true);
+            try {
+                const video = await ref.current.recordAsync({
+                    quality: '720p',
+                    maxDuration: 60,
+                });
+                setUri(video.uri);
+            } catch (error) {
+                console.error('Error recording video:', error);
+            } finally {
+                setIsRecording(false);
+            }
+        }
+    };
+
+    const stopRecording = () => {
+        if (ref.current) {
+            ref.current.stopRecording();
+            setIsRecording(false);
+        }
+    };
+
     const toggleFacing = () => {
         setFacing((prev) => (prev === "back" ? "front" : "back"));
     };
+
+    const toggleMode = () => {
+        setMode((prev) => (prev === "picture" ? "video" : "picture"))
+    }
 
     const handleSave = async () => {
         const now = new Date();
@@ -49,7 +96,7 @@ export default function CameraScreen({ route, navigation }) {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
 
-        const newNote = { ...data, notes: [...data.notes, { uri: uri, date: `${year}-${month}-${day}`}] };
+        const newNote = { ...data, notes: [...data.notes, { uri: uri, date: `${year}-${month}-${day}`, type: mode}] };
 
         const res = await getItem('folders');
         
@@ -67,59 +114,96 @@ export default function CameraScreen({ route, navigation }) {
 
     const renderEditView = (uri) => {
         return (
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.previewContainer}>
-                <View style={styles.previewHeader}>
-                    <TouchableOpacity onPress={() => setUri(null)}>
-                    <Feather name="rotate-ccw" size={24} color="black" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handleSave}>
-                    <Feather name="check" size={24} color="black" />
-                    </TouchableOpacity>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <View style={styles.previewContainer}>
+                    <View style={styles.previewHeader}>
+                        <TouchableOpacity onPress={() => setUri(null)}>
+                        <Feather name="rotate-ccw" size={24} color="black" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleSave}>
+                        <Feather name="check" size={24} color="black" />
+                        </TouchableOpacity>
+                    </View>
+                    
+                    <View style={styles.imageContainer}>
+                        { mode === 'video' ? (
+                            <VideoView 
+                                style={styles.fullImg}
+                                player={player}
+                                contentFit="contain"
+                                nativeControls
+                            />
+                        ) : (
+                            <Image
+                                source={{ uri }}
+                                contentFit="contain"
+                                style={styles.fullImg}
+                            />
+                        )}
+                        
+                    </View>
                 </View>
-                
-                <View style={styles.imageContainer}>
-                    <Image
-                        source={{ uri }}
-                        contentFit="contain"
-                        style={styles.fullImg}
-                    />
-                </View>
-            </View>
-        </TouchableWithoutFeedback>
+            </TouchableWithoutFeedback>
         );
     };
 
     const renderCameraView = () => {
         return (
-        <View style={styles.cameraContainer}>
-            <CameraView
-                style={styles.camera}
-                ref={ref}
-                facing={facing}
-                responsiveOrientationWhenOrientationLocked
-                mirror
-                zoom={0.1}
-            />
-            <View style={styles.buttonsContainer}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Feather name="chevron-left" size={40} color="white" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={takePicture}>
-                    <Feather name="circle" size={64} color="white" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={toggleFacing}>
-                    <FontAwesome6 name="rotate-left" size={30} color="white" />
-                </TouchableOpacity>
+            <View style={styles.cameraContainer}>
+                <CameraView
+                    style={styles.camera}
+                    ref={ref}
+                    facing={facing}
+                    mode={mode}
+                    responsiveOrientationWhenOrientationLocked
+                    mirror
+                    zoom={0.1}
+                />
+                <View style={styles.modeContainer}>
+                    { mode === 'video' ? (
+                        <View style={styles.modeButtons}>
+                        <TouchableOpacity onPress={toggleMode}>
+                            <Feather name="camera" size={24} color="white" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.selectedModeButton}>
+                            <Feather name="video" size={24} color="red" />
+                        </TouchableOpacity>
+                        </View>
+                    ): (
+                        <View style={styles.modeButtons}>
+                        <TouchableOpacity style={styles.selectedModeButton}>
+                            <Feather name="camera" size={24} color="black" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={toggleMode}>
+                            <Feather name="video" size={24} color="white" />
+                        </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+                <View style={styles.buttonsContainer}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <Feather name="chevron-left" size={40} color="white" />
+                    </TouchableOpacity>
+                    { mode === 'video' ? (
+                        <TouchableOpacity onPress={isRecording ? stopRecording : startRecording}>
+                            {isRecording ? <MaterialCommunityIcons name="stop-circle-outline" size={64} color="red" /> : <FontAwesome name="circle" size={64} color="red" />}
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity onPress={takePicture}>
+                            <Feather name="circle" size={64} color="white" />
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={toggleFacing}>
+                        <FontAwesome6 name="rotate-left" size={30} color="white" />
+                    </TouchableOpacity>
+                </View>
             </View>
-        </View>
-        
         );
     };
 
     return (
         <View style={styles.container}>
-        {uri ? renderEditView(uri) : renderCameraView()}
+            {uri ? renderEditView(uri) : renderCameraView()}
         </View>
     );
 }
@@ -166,5 +250,24 @@ const styles = StyleSheet.create({
     fullImg: {
         width: '100%',
         height: '90%'
-    }
+    },
+    modeContainer: {
+        position: "absolute",
+        bottom: 120,
+        width: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 30,
+    },
+    modeButtons: {
+        backgroundColor: 'lightgray',
+        opacity: 0.5,
+        borderRadius: 99,
+        width: "30%",
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 15,
+        paddingVertical: 5,
+    },
 });
