@@ -19,17 +19,21 @@ export default function CameraScreen({ route, navigation }) {
     const [facing, setFacing] = useState("back");
     const [mode, setMode] = useState("image");
     const [isRecording, setIsRecording] = useState(false);
+    const [recordTime, setRecordTime] = useState(0); // in seconds
 
     const { data } = route.params;
+
     const player = useVideoPlayer(uri, (player) => {
         player.loop = true;
         player.play();
     });
 
+    // if permissions are rejected
     if (!cameraPermission || ! microphonePermission) {
         return null;
     }
 
+    // ask camera permission
     if (!cameraPermission.granted) {
         return (
         <View style={styles.container}>
@@ -41,6 +45,7 @@ export default function CameraScreen({ route, navigation }) {
         );
     }
 
+    // ask video permission
     if (!microphonePermission.granted) {
         return (
             <View style={styles.container}>
@@ -62,6 +67,12 @@ export default function CameraScreen({ route, navigation }) {
     const startRecording = async () => {
         if (ref.current) {
             setIsRecording(true);
+            setRecordTime(0);
+
+            const timer = setInterval(() => {
+                setRecordTime(prev => prev + 1);
+            }, 1000);
+            
             try {
                 const video = await ref.current.recordAsync({
                     quality: '720p',
@@ -72,6 +83,7 @@ export default function CameraScreen({ route, navigation }) {
                 console.error('Error recording video:', error);
             } finally {
                 setIsRecording(false);
+                clearInterval(timer);
             }
         }
     };
@@ -91,6 +103,7 @@ export default function CameraScreen({ route, navigation }) {
         setMode((prev) => (prev === "image" ? "video" : "image"))
     }
 
+    // store a taken photo / video into the folder's notes
     const handleSave = async () => {
         const now = new Date();
         const year = now.getFullYear();
@@ -113,6 +126,7 @@ export default function CameraScreen({ route, navigation }) {
         navigation.goBack();
     }
 
+    // after a photo / video is taken (preview screen)
     const renderEditView = (uri) => {
         return (
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -159,6 +173,14 @@ export default function CameraScreen({ route, navigation }) {
                     responsiveOrientationWhenOrientationLocked
                     zoom={0.1}
                 />
+                { mode === 'video' && (
+                    <View style={styles.timerContainer}>
+                        <Text style={styles.timer}>
+                            {Math.floor(recordTime / 60).toString().padStart(2,'0')} : {(recordTime % 60).toString().padStart(2,'0')}
+                        </Text>
+                    </View>
+                )}
+                
                 <View style={styles.modeContainer}>
                     { mode === 'video' ? (
                         <View style={styles.modeButtons}>
@@ -251,12 +273,26 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '90%'
     },
+    timerContainer: {
+        position: 'absolute',
+        top: 60,
+        alignSelf: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        borderRadius: 20,
+    },
+    timer: {
+        color: 'white',
+        fontSize: 16,
+    },
     modeContainer: {
-        position: "absolute",
+        position: 'absolute',
         bottom: 120,
-        width: "100%",
-        alignItems: "center",
-        justifyContent: "center",
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
         paddingHorizontal: 30,
     },
     modeButtons: {

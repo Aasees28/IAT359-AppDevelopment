@@ -118,6 +118,19 @@ export default function WelcomeScreen() {
     setSelectedDate(selected.toISOString().split('T')[0]);
   }
 
+  const signout = async () => {
+    try {
+      await signOut(auth);
+      console.log("User signed out");
+      await removeItem("userName");
+      await removeItem("folders");
+      navigation.replace("Signup");
+    } catch (error) {
+      console.log("Error signing out:", error.message);
+    }
+    setMenuVisible(false);
+  }
+  
   useFocusEffect(
     useCallback(() => {
       (async () => {
@@ -191,18 +204,7 @@ export default function WelcomeScreen() {
             {menuVisible && (
               <View style={styles.dropdown}>
                 <TouchableOpacity
-                    onPress={async () => {
-                      try {
-                        await signOut(auth);
-                        console.log("User signed out");
-                        await removeItem("userName");
-                        await removeItem("folders");
-                        navigation.replace("Signup");
-                      } catch (error) {
-                        console.log("Error signing out:", error.message);
-                      }
-                      setMenuVisible(false);
-                    }}
+                    onPress={signout}
                 >
                   <Text style={styles.dropdownText}>Sign Out</Text>
                 </TouchableOpacity>

@@ -19,14 +19,14 @@ export default function FolderScreen({ navigation, route }) {
     const [imageModalVisible, setImageModalVisible] = useState(false);
     const [newTodoName, setNewTodoName] = useState("");
     const [deadline, setDeadline] = useState(null);
-    const [showDeadline, setShowDeadline] = useState(false);
     const [data, setData] = useState(route.params.item);
-    const [selectedImage, setSelectedImage] = useState(null);
+    const [selectedImage, setSelectedImage] = useState(null); // { uri, type, date }
     const { name } = route.params.item;
 
     useFocusEffect(
         useCallback(() => {
             (async () => {
+                // initialize data by retrieving folders from async storage
                 const res = await getItem("folders");
                 if (res) {
                     const found = res.find((item) => item.name === name);
@@ -36,6 +36,7 @@ export default function FolderScreen({ navigation, route }) {
         }, [])
     )
 
+    // delete the current folder
     const handleDeleteFolder = async () => {
         const storedFolders = await getItem("folders");
         const updatedFolders = storedFolders.filter(folder => folder.name !== name);
@@ -44,21 +45,42 @@ export default function FolderScreen({ navigation, route }) {
         navigation.goBack();
     }
 
+    // FOR ANDROID to open date picker for creating todo
     const showDatepicker = () => {
         DateTimePickerAndroid.open({
             value: new Date(),
             onChange: onDateChange,
             mode: 'date',
         }); 
-        
     }
 
+    // helper function for the above showDatepicker()
     const onDateChange = (event, selectedDate) => {
         const currentDate = selectedDate;
-        setShowDeadline(false);
         setDeadline(currentDate);
     };
 
+    const showNoteOptions = async () => {
+        Alert.alert(
+            "Add Media",
+            "Choose an option",
+            [
+                { 
+                    text: "Take Photo / Video", 
+                    onPress: async () => navigation.navigate('Camera' , { data }) 
+                },
+                { 
+                    text: "Choose from Library", 
+                    onPress: async () => { 
+                        await pickImage() 
+                    } 
+                },
+                { text: "Cancel", style: "cancel" },
+            ]
+        );
+    }
+
+    // upload image from my library
     const pickImage = async () => {
         const permissionResult = await requestMediaLibraryPermissionsAsync();
 
@@ -73,6 +95,7 @@ export default function FolderScreen({ navigation, route }) {
             quality: 1,
         });
 
+        // after crop is done, add this image/video to the notes
         if (!result.canceled) {
             const now = new Date();
             const year = now.getFullYear();
@@ -92,11 +115,51 @@ export default function FolderScreen({ navigation, route }) {
         }
     };
 
+    // expand the image to full screen
     const onImageClick = (image) => {
         setSelectedImage(image);
         setImageModalVisible(true);
     }
 
+    // delete the image / video from the notes
+    const deleteNote = () => {
+        Alert.alert(
+            "Delete this note",
+            "Are you sure you want to delete this note?",
+            [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Delete",
+                style: "destructive",
+                onPress: async () => {
+                    try {
+                        // remove the selected image from the folder's note
+                        const filtered = data.notes.filter((item) => item.uri !== selectedImage.uri);
+
+                        const updated = { ...data, notes: filtered };
+                        setData(updated);
+
+                        const res = await getItem("folders");
+                        res.forEach((folder, i) => {
+                            if (folder.name == data.name) {
+                                res[i] = updated;
+                            }
+                        })
+
+                        await storeItem('folders', res);
+
+                        Alert.alert("Deleted", "The note has been deleted.");
+                        setSelectedImage(null);
+                    } catch (error) {
+                        console.error("Error deleting note:", error);
+                    }
+                },
+            },
+            ]
+        );
+    }
+
+    // create a todo
     const createTodo = async () => {
         const res = await getItem("folders");
         
@@ -123,6 +186,7 @@ export default function FolderScreen({ navigation, route }) {
         setDeadline(new Date());
     }
 
+    // to fix the date (set to UTC by default) to match with the time here
     const formatDate = () => {
         const offset = deadline.getTimezoneOffset() * 60000;
         const local = new Date(deadline.getTime() - offset);
@@ -135,6 +199,7 @@ export default function FolderScreen({ navigation, route }) {
         }
     }
 
+    // check off the todo item and update to the storage
     const onCheck = async (todoItem) => {
         const updated = data.todos.map(todo => {
             if (todo.name === todoItem.name && todo.date === todoItem.date) {
@@ -156,13 +221,14 @@ export default function FolderScreen({ navigation, route }) {
         await storeItem("folders", res);
     }
     
+    // run this whenever the todo modal is closed
     const resetTodoInput = () => {
         setDeadline(null);
         setNewTodoName("");
-        setShowDeadline(false);
         setTodoModalVisible(false);
     }
 
+    // custom component to run a video dynamically
     function VideoPreview({ uri, style, contentFit }) {
         const player = useVideoPlayer(uri);
         
@@ -189,11 +255,8 @@ export default function FolderScreen({ navigation, route }) {
                 <View style={styles.sectionHeader}>
                     <Text style={styles.title}>📖 Lecture note / photo</Text>
                     <View style={styles.buttonContainers}>
-                        <TouchableOpacity onPress={() => navigation.navigate('Camera' , { data })}>
-                            <Feather name="camera" size={24} color="black" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={pickImage}>
-                            <Feather name="image" size={24} color="black" />
+                        <TouchableOpacity onPress={showNoteOptions}>
+                            <Feather name="plus-circle" size={24} color="black" />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -360,9 +423,15 @@ export default function FolderScreen({ navigation, route }) {
                                     <Text style={styles.modalTitle}>{data.name}</Text>
                                     <Text style={styles.modalSubtitle}>{selectedImage.date}</Text>
                                 </View>
-                                <TouchableOpacity onPress={() => setImageModalVisible(false)}>
-                                    <Feather name="x" size={24} color="black" />
-                                </TouchableOpacity>
+                                <View style={styles.modalHeaderButtonContainer}>
+                                    <TouchableOpacity onPress={deleteNote}>
+                                        <Feather name="trash-2" size={24} color="red" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => setImageModalVisible(false)}>
+                                        <Feather name="x" size={24} color="black" />
+                                    </TouchableOpacity>
+                                </View>
+                                    
                             </View>
                             { selectedImage && (selectedImage.type === 'video' ? (
                                 <VideoPreview uri={selectedImage.uri} />
@@ -452,6 +521,11 @@ export const styles = StyleSheet.create({
     modalTitleContainer: {
         flexDirection: 'column',
     },
+    modalHeaderButtonContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 20,
+    },
     modalTitle: {
         fontSize: 16,
         fontWeight: '600',
@@ -519,7 +593,7 @@ export const styles = StyleSheet.create({
         marginBottom: 12,
     },
     statusText: {
-        fontWeight: 'bold',
+        fontWeight: '600',
         color: '#333',
         fontSize: 14,
     },
@@ -537,7 +611,8 @@ export const styles = StyleSheet.create({
         flex: 1,
     },
     todoName: {
-        fontSize: 16
+        fontSize: 16,
+        fontWeight: 600,
     },
     todoDate: {
         color: '#666', 
