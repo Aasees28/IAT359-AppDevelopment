@@ -1,21 +1,27 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Keyboard, Modal, TextInput, TouchableWithoutFeedback } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Keyboard, Modal, TextInput, Button, TouchableWithoutFeedback, Alert, Platform } from "react-native";
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import CheckBox from "react-native-check-box";
 import { Image } from "expo-image";
 import Header from "../components/Header";
 import { storeItem, getItem, clearAll, removeItem } from "../utils/storage";
+import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from 'expo-image-picker';
+import { useVideoPlayer, VideoView } from "expo-video";
+
+// import { Zoomable } from "@likashefqet/react-native-image-zoom";
 
 export default function FolderScreen({ navigation, route }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [todoModalVisible, setTodoModalVisible] = useState(false);
+    const [imageModalVisible, setImageModalVisible] = useState(false);
     const [newTodoName, setNewTodoName] = useState("");
-    const [deadline, setDeadline] = useState(new Date());
+    const [deadline, setDeadline] = useState(null);
+    const [showDeadline, setShowDeadline] = useState(false);
     const [data, setData] = useState(route.params.item);
-
+    const [selectedImage, setSelectedImage] = useState(null);
     const { name } = route.params.item;
 
     useFocusEffect(
@@ -25,7 +31,6 @@ export default function FolderScreen({ navigation, route }) {
                 if (res) {
                     const found = res.find((item) => item.name === name);
                     setData(found);
-                    console.log(data)
                 }
             })();
         }, [])
@@ -39,13 +44,69 @@ export default function FolderScreen({ navigation, route }) {
         navigation.goBack();
     }
 
+    const showDatepicker = () => {
+        DateTimePickerAndroid.open({
+            value: new Date(),
+            onChange: onDateChange,
+            mode: 'date',
+        }); 
+        
+    }
+
+    const onDateChange = (event, selectedDate) => {
+        const currentDate = selectedDate;
+        setShowDeadline(false);
+        setDeadline(currentDate);
+    };
+
+    const pickImage = async () => {
+        const permissionResult = await requestMediaLibraryPermissionsAsync();
+
+        if (!permissionResult.granted) {
+            Alert.alert('Permission required', 'We need your permission to use the media library.');
+            return;
+        }
+
+        let result = await launchImageLibraryAsync({
+            mediaTypes: ['images', 'videos'],
+            allowsEditing: true,
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const updated = { ...data, notes: [...data.notes, { uri: result.assets[0].uri, type: result.assets[0].type, date: `${year}-${month}-${day}` }] };
+
+            setData(updated);
+            const res = await getItem("folders");
+            res.forEach((folder, i) => {
+                if (folder.name === data.name) {
+                    res[i] = updated;
+                }
+            });
+
+            await storeItem("folders", res);
+        }
+    };
+
+    const onImageClick = (image) => {
+        setSelectedImage(image);
+        setImageModalVisible(true);
+    }
+
     const createTodo = async () => {
         const res = await getItem("folders");
         
         const trimmedName = newTodoName.trim();
-        if (!trimmedName) return;
+        if (!trimmedName) {
+            Alert.alert("Todo name cannot be empty.");
+            return;
+        };
 
-        const newTodo = { name: trimmedName, date: deadline.toISOString().split('T')[0], checked: false };
+        const newTodo = { name: trimmedName, date: formatDate(), checked: false };
         res.forEach((folder, i) => {
             if (folder.name === name) {
                 res[i].todos.push(newTodo);
@@ -62,44 +123,101 @@ export default function FolderScreen({ navigation, route }) {
         setDeadline(new Date());
     }
 
+    const formatDate = () => {
+        const offset = deadline.getTimezoneOffset() * 60000;
+        const local = new Date(deadline.getTime() - offset);
+        return local.toISOString().split('T')[0];
+    }
+
     const onDeadlineChange = (e, selectedDate) => {
         if (e.type !== 'dismissed') {
             setDeadline(selectedDate || new Date());
         }
     }
 
+    const onCheck = async (todoItem) => {
+        const updated = data.todos.map(todo => {
+            if (todo.name === todoItem.name && todo.date === todoItem.date) {
+                return { ...todo, checked: !todo.checked };
+            } else {
+                return todo;
+            }
+        })
+
+        setData({ ...data, todos: updated });
+        
+        const res = await getItem("folders");
+        res.forEach((folder, i) => {
+            if (folder.name === data.name) {
+                res[i].todos = updated;
+            }
+        });
+
+        await storeItem("folders", res);
+    }
+    
+    const resetTodoInput = () => {
+        setDeadline(null);
+        setNewTodoName("");
+        setShowDeadline(false);
+        setTodoModalVisible(false);
+    }
+
+    function VideoPreview({ uri, style, contentFit }) {
+        const player = useVideoPlayer(uri);
+        
+        return (
+            <VideoView
+                player={player}
+                style={style ? style : styles.expanded}
+                contentFit={ contentFit ? contentFit : "contain"}
+                nativeControls
+            />
+        );
+    }
+
     return (
         <View style={styles.container}>
             <Header isBackOnly />
             <View style={styles.header}>
-                <Text style={styles.folderName}>📁{data.name}</Text>
+                <Text style={styles.folderName}>📁 {data.name}</Text>
                 <TouchableOpacity onPress={() => setModalVisible(true)}>
                     <Feather name="more-vertical" size={24} color="black" />
                 </TouchableOpacity>
             </View>
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.title}>📖Lecture note / photo</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Camera' , { data })}>
-                        <Feather name="plus-circle" size={24} color="black" />
-                    </TouchableOpacity>
+                    <Text style={styles.title}>📖 Lecture note / photo</Text>
+                    <View style={styles.buttonContainers}>
+                        <TouchableOpacity onPress={() => navigation.navigate('Camera' , { data })}>
+                            <Feather name="camera" size={24} color="black" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={pickImage}>
+                            <Feather name="image" size={24} color="black" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
                 
                 {/* photo previews / gallery here */}
                 <View style={styles.photosContainer}>
                     {data.notes && data.notes.map((item, i) => (
-                        <Image
-                            source={{ uri: item.uri }}
-                            contentFit="cover"
-                            style={styles.image}
-                            key={i}
-                        />
+                        <TouchableOpacity key={i} onPress={() => onImageClick(item)}>
+                            { item.type === 'video' ? (
+                                <VideoPreview uri={item.uri} style={styles.image} contentFit="cover" />
+                            ) : (
+                                <Image
+                                    source={{ uri: item.uri }}
+                                    contentFit="cover"
+                                    style={styles.image}
+                                />
+                            )}
+                        </TouchableOpacity>
                     ))}                    
                 </View>
             </View>
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.title}>✒️Todo</Text>
+                    <Text style={styles.title}>✒️ Todo</Text>
                     <TouchableOpacity onPress={() => setTodoModalVisible(true)}>
                         <Feather name="plus-circle" size={24} color="black" />
                     </TouchableOpacity>
@@ -115,11 +233,14 @@ export default function FolderScreen({ navigation, route }) {
                             <View key={i} style={styles.todoContainer}>
                                 <CheckBox
                                     isChecked={todo.checked}
-                                    onClick={() => {}}
+                                    onClick={() => onCheck(todo)}
                                     checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
                                     unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
                                 />
-                                <Text style={styles.todoName}>{todo.name} | {todo.date}</Text>
+                                <View style={styles.todoContent}>
+                                    <Text style={styles.todoName}>{todo.name}</Text>
+                                    <Text style={styles.todoDate}>{todo.date}</Text>
+                                </View>
                             </View>)}
                         )}
                     </View>
@@ -133,11 +254,14 @@ export default function FolderScreen({ navigation, route }) {
                             <View key={i} style={styles.todoContainer}>
                                 <CheckBox
                                     isChecked={todo.checked}
-                                    onClick={() => {}}
+                                    onClick={() => onCheck(todo)}
                                     checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
                                     unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
                                 />
-                                <Text style={styles.todoName}>{todo.name} | {todo.date}</Text>
+                                <View style={styles.todoContent}>
+                                    <Text style={styles.todoName}>{todo.name}</Text>
+                                    <Text style={styles.todoDate}>{todo.date}</Text>
+                                </View>
                             </View>)}
                         )}
                     </View>
@@ -153,21 +277,19 @@ export default function FolderScreen({ navigation, route }) {
                     setModalVisible(!modalVisible);
                 }}
             >
-                <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-                            <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>Setting</Text>
-                            </View>
-                            <TouchableOpacity style={styles.modalDeleteButton} onPress={handleDeleteFolder}>
-                                <Text style={styles.modalButtonText}>Delete this folder</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalCancelButton} onPress={() => setModalVisible(false)}>
-                                <Text style={styles.modalButtonText}>Cancel</Text>
-                            </TouchableOpacity>
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Setting</Text>
                         </View>
+                        <TouchableOpacity style={styles.modalDeleteButton} onPress={handleDeleteFolder}>
+                            <Text style={styles.modalButtonText}>Delete this folder</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.modalCancelButton} onPress={() => setModalVisible(false)}>
+                            <Text style={styles.modalButtonText}>Cancel</Text>
+                        </TouchableOpacity>
                     </View>
-                </TouchableWithoutFeedback>
+                </View>
             </Modal>
             
             {/* Create todo modal */}
@@ -181,7 +303,7 @@ export default function FolderScreen({ navigation, route }) {
                 <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
-                            <View style={styles.modalHeader}>
+                            <View style={styles.todoModalHeader}>
                                 <Text style={styles.modalTitle}>Add Todo</Text>
                             </View>
                             <View>
@@ -192,21 +314,28 @@ export default function FolderScreen({ navigation, route }) {
                                     style={styles.input}
                                 />
                             </View>
-                            <View style={{ marginTop: 10,}}>
+                            <View style={{ marginTop: 10 }}>
                                 <Text>Deadline:</Text>
-                                <DateTimePicker
-                                    value={deadline ?? new Date()}
-                                    mode='date'
-                                    onChange={onDeadlineChange}
-                                    style={styles.datePicker}
-                                />
+                                { Platform.OS === 'ios' ? (
+                                    <DateTimePicker
+                                        value={deadline ?? new Date()}
+                                        mode='date'
+                                        display="compact"
+                                        onChange={onDeadlineChange}
+                                        style={styles.datePickerCalendar}
+                                    />
+                                ) : (
+                                    <TouchableOpacity onPress={showDatepicker} >
+                                        <Text style={styles.input}>{deadline ? formatDate() : 'Select date'}</Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                             
                             <View style={styles.modalButtonContainer}>
                                 <TouchableOpacity style={styles.modalCreateButton} onPress={createTodo}>
                                     <Text style={styles.modalButtonText}>Create</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.modalBackButton} onPress={() => setTodoModalVisible(false)}>
+                                <TouchableOpacity style={styles.modalBackButton} onPress={resetTodoInput}>
                                     <Text style={styles.modalButtonText}>Cancel</Text>
                                 </TouchableOpacity>
                             </View>
@@ -214,6 +343,43 @@ export default function FolderScreen({ navigation, route }) {
                     </View>
                 </TouchableWithoutFeedback>
             </Modal>
+
+            {/* expand image */}
+            { selectedImage &&
+                <Modal
+                    transparent={true}
+                    visible={imageModalVisible}
+                    onRequestClose={() => {
+                        setImageModalVisible(!imageModalVisible);
+                    }}
+                >
+                    <View style={styles.imageModalContainer}>
+                        <View style={styles.imageModalContent}>
+                            <View style={styles.modalHeader}>
+                                <View style={styles.modalTitleContainer}>
+                                    <Text style={styles.modalTitle}>{data.name}</Text>
+                                    <Text style={styles.modalSubtitle}>{selectedImage.date}</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => setImageModalVisible(false)}>
+                                    <Feather name="x" size={24} color="black" />
+                                </TouchableOpacity>
+                            </View>
+                            { selectedImage && (selectedImage.type === 'video' ? (
+                                <VideoPreview uri={selectedImage.uri} />
+                            ) : (
+                                // <Zoomable isDoubleTapEnabled>
+                                    <Image
+                                        source={{ uri: selectedImage.uri}}
+                                        contentFit="contain"
+                                        style={styles.expanded}
+                                    />
+                                // </Zoomable>
+                                
+                            ))}
+                        </View>
+                    </View>
+                </Modal>
+            }
         </View> 
     )
 }
@@ -224,9 +390,8 @@ export const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     header: {
-        margin: 10,
+        marginVertical: 20,
         marginHorizontal: 20,
-        marginBottom: 20,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -246,14 +411,25 @@ export const styles = StyleSheet.create({
         marginHorizontal: 20,
     },
     title: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
     },
+    buttonContainers: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 15,
+    },  
     modalContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    imageModalContainer: {
+        flex: 1,
+        paddingTop: 40,
+        alignItems: 'center',
+        backgroundColor: '#fff',
     },
     modalContent: {
         width: 300,
@@ -261,15 +437,28 @@ export const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 10, 
     },
+    imageModalContent: {
+        width: '100%',
+    },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        padding: 20,
+    },
+    todoModalHeader: {
+        paddingBottom: 20,
+    },
+    modalTitleContainer: {
+        flexDirection: 'column',
     },
     modalTitle: {
         fontSize: 16,
         fontWeight: '600',
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: '#666',
     },
     modalButtonText: {
         color: 'white',
@@ -327,10 +516,11 @@ export const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         borderRadius: 99,
         marginLeft: 10,
-        marginBottom: 10,
+        marginBottom: 12,
     },
     statusText: {
         fontWeight: 'bold',
+        color: '#333',
         fontSize: 14,
     },
     todoContainer: {
@@ -338,10 +528,27 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
+        marginBottom: 10,
     },
-    todoName: {},
+    todoContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flex: 1,
+    },
+    todoName: {
+        fontSize: 16
+    },
+    todoDate: {
+        color: '#666', 
+        fontSize: 12,
+    },
     datePicker: {
         marginTop: 5,
+    },
+    datePickerCalendar: {
+        marginTop: 10,
+        marginLeft: -5,
     },
     photosContainer: {
         flexDirection: 'row',
@@ -355,4 +562,8 @@ export const styles = StyleSheet.create({
         height: 100,
         borderRadius: 8,
     },
+    expanded: {
+        width: '100%',
+        aspectRatio: 1,
+    }
 });

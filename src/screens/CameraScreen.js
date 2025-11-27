@@ -4,6 +4,7 @@ import { Alert, Button, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity,
 import { Image } from "expo-image";
 import Feather from "@expo/vector-icons/Feather";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { getItem, storeItem } from "../utils/storage";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -16,7 +17,7 @@ export default function CameraScreen({ route, navigation }) {
     const [uri, setUri] = useState(null);
 
     const [facing, setFacing] = useState("back");
-    const [mode, setMode] = useState("video");
+    const [mode, setMode] = useState("image");
     const [isRecording, setIsRecording] = useState(false);
 
     const { data } = route.params;
@@ -33,7 +34,7 @@ export default function CameraScreen({ route, navigation }) {
         return (
         <View style={styles.container}>
             <Text style={{ textAlign: "center" }}>
-            We need your permission to use the camera
+                We need your permission to use the camera
             </Text>
             <Button onPress={requestCameraPermission} title="Grant permission" />
         </View>
@@ -87,7 +88,7 @@ export default function CameraScreen({ route, navigation }) {
     };
 
     const toggleMode = () => {
-        setMode((prev) => (prev === "picture" ? "video" : "picture"))
+        setMode((prev) => (prev === "image" ? "video" : "image"))
     }
 
     const handleSave = async () => {
@@ -156,7 +157,6 @@ export default function CameraScreen({ route, navigation }) {
                     facing={facing}
                     mode={mode}
                     responsiveOrientationWhenOrientationLocked
-                    mirror
                     zoom={0.1}
                 />
                 <View style={styles.modeContainer}>

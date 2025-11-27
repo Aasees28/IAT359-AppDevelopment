@@ -131,15 +131,15 @@ export default function WelcomeScreen() {
               setUserName(firstName);
               await storeItem("userName", firstName); // keep synced locally
             } else {
-              console.log("⚠️ No Firestore record found, using cached name");
+              console.log("No Firestore record found, using cached name");
               const cachedName = await getItem("userName");
               if (cachedName) setUserName(cachedName);
             }
           } catch (error) {
-            console.log("❌ Error fetching Firestore name:", error.message);
+            console.log("Error fetching Firestore name:", error.message);
           }
         } else {
-          console.log("⚠️ No user logged in");
+          console.log("No user logged in");
         }
 
         // get folders data to list out daily deadlines
@@ -194,12 +194,12 @@ export default function WelcomeScreen() {
                     onPress={async () => {
                       try {
                         await signOut(auth);
-                        console.log("✅ User signed out");
-                        await removeItem("userName"); // 👈 clear old name
-                        await removeItem("folders");  // optional — if you want per-user folders
-                        navigation.replace("Signup"); // 👈 navigate back to signup/login
+                        console.log("User signed out");
+                        await removeItem("userName");
+                        await removeItem("folders");
+                        navigation.replace("Signup");
                       } catch (error) {
-                        console.log("❌ Error signing out:", error.message);
+                        console.log("Error signing out:", error.message);
                       }
                       setMenuVisible(false);
                     }}
