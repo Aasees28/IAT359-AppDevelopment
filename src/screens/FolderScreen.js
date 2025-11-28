@@ -19,9 +19,16 @@ export default function FolderScreen({ navigation, route }) {
     const [imageModalVisible, setImageModalVisible] = useState(false);
     const [newTodoName, setNewTodoName] = useState("");
     const [deadline, setDeadline] = useState(null);
-    const [data, setData] = useState(route.params.item);
     const [selectedImage, setSelectedImage] = useState(null); // { uri, type, date }
     const { name } = route.params.item;
+    
+
+    const [data, setData] = useState({
+        ...route.params.item,
+        notes: route.params.item.notes || [],
+        todos: route.params.item.todos || []
+    });
+
 
     useFocusEffect(
         useCallback(() => {
@@ -261,11 +268,12 @@ export default function FolderScreen({ navigation, route }) {
                     </View>
                 </View>
                 
-                {/* photo previews / gallery here */}
                 <View style={styles.photosContainer}>
-                    {data.notes && data.notes.map((item, i) => (
+
+                    {/* Show only the first 2 images */}
+                    {data.notes && data.notes.slice(0, 2).map((item, i) => (
                         <TouchableOpacity key={i} onPress={() => onImageClick(item)}>
-                            { item.type === 'video' ? (
+                            {item.type === "video" ? (
                                 <VideoPreview uri={item.uri} style={styles.image} contentFit="cover" />
                             ) : (
                                 <Image
@@ -275,7 +283,17 @@ export default function FolderScreen({ navigation, route }) {
                                 />
                             )}
                         </TouchableOpacity>
-                    ))}                    
+                    ))}
+
+                    {data.notes && data.notes.length > 2 && (
+                        <TouchableOpacity
+                            style={styles.plusBox}
+                            onPress={() => navigation.navigate("ImageGrid", { images: data.notes })}
+                        >
+                            <Text style={styles.plusText}>+</Text>
+                        </TouchableOpacity>
+                    )}
+
                 </View>
             </View>
             <View style={styles.section}>
@@ -640,5 +658,24 @@ export const styles = StyleSheet.create({
     expanded: {
         width: '100%',
         aspectRatio: 1,
-    }
+    },
+plusBox: {
+    width: 100,
+    height: 100,
+    borderWidth: 2,
+    borderColor: "#ccc",
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f7f7f7",
+    marginRight: 10,
+},
+
+plusText: {
+    fontSize: 40,
+    color: "#888",
+    fontWeight: "bold",
+},
+
+
 });

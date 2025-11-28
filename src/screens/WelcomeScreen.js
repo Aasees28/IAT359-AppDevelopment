@@ -27,10 +27,44 @@ export default function WelcomeScreen() {
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [userName, setUserName] = useState("");
+  const [holidays, setHolidays] = useState([]);
 
   const randomColor = () => {
     return colors[Math.floor(Math.random() * 7)];
   }
+
+  const fetchCanadianHolidays = async () => {
+  try {
+    const currentYear = new Date().getFullYear();
+    const url = `https://canada-holidays.ca/api/v1/holidays?year=${currentYear}`;
+
+    const response = await fetch(url);
+    const json = await response.json();
+
+    if (!json.holidays) {
+      console.log("No holidays found");
+      return;
+    }
+
+    const holidayDots = {};
+      json.holidays.forEach((h) => {
+        holidayDots[h.date] = {
+          dots: [{ color: "red" }],
+          marked: true,
+          holidayName: h.nameEn
+        };
+      });
+
+      setHolidays(json.holidays);
+      setDots((prev) => ({ ...prev, ...holidayDots }));
+
+      console.log("Fetched Holidays:", json.holidays);
+
+    } catch (error) {
+      console.error("Holiday API Error:", error);
+    }
+  };
+
 
   const onCheck = async (folderName, todoName) => {
     const updated = events.map((item) => {
@@ -60,6 +94,13 @@ export default function WelcomeScreen() {
     await storeItem("folders", updated);
 
   }
+
+  const openHolidayModal = (date) => {
+  const holidayName = holidays[date]?.name || "Holiday";
+  setSelectedHoliday(holidayName);
+  setHolidayModal(true);
+};
+
 
   const onSelectDate = (date) => {
     const selected = date.dateString;
@@ -131,64 +172,102 @@ export default function WelcomeScreen() {
     setMenuVisible(false);
   }
   
-  useFocusEffect(
-    useCallback(() => {
-      (async () => {
-        // Try Firestore first, then local storage as fallback
-        const user = auth.currentUser;
-        if (user) {
-          try {
-            const userDoc = await getDoc(doc(db, "users", user.uid));
-            if (userDoc.exists()) {
-              const { firstName } = userDoc.data();
-              setUserName(firstName);
-              await storeItem("userName", firstName); // keep synced locally
-            } else {
-              console.log("No Firestore record found, using cached name");
-              const cachedName = await getItem("userName");
-              if (cachedName) setUserName(cachedName);
-            }
-          } catch (error) {
-            console.log("Error fetching Firestore name:", error.message);
+useFocusEffect(
+  useCallback(() => {
+    (async () => {
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const { firstName } = userDoc.data();
+            setUserName(firstName);
+            await storeItem("userName", firstName);
+          } else {
+            console.log("No Firestore record found, using cached name");
+            const cachedName = await getItem("userName");
+            if (cachedName) setUserName(cachedName);
           }
-        } else {
-          console.log("No user logged in");
+        } catch (error) {
+          console.log("Error fetching Firestore name:", error.message);
         }
+      } else {
+        console.log("No user logged in");
+      }
 
-        // get folders data to list out daily deadlines
-        const res = await getItem("folders");
-        console.log("res: ", res)
+      const res = await getItem("folders");
+      console.log("res: ", res);
 
-        if (!res) {
-          setEvents([]);
-          setDots({});
-        } else {
-          setEvents(res);
+      let newDots = {};
 
-          // set up dots for calendar
-          const newDots = {};
-          res.forEach((folder) => {
-            const c = randomColor();
-            folder.todos.forEach((todo) => {
-              if (!newDots[todo.date]) {
-                newDots[todo.date] = { dots: [] };
-              }
-              newDots[todo.date].dots.push({ key: `${todo.name}-${folder.name}`, color: c });
+      if (!res) {
+        setEvents([]);
+        setDots({});
+      } else {
+        setEvents(res);
+
+        res.forEach((folder) => {
+          const c = randomColor();
+          folder.todos.forEach((todo) => {
+            if (!newDots[todo.date]) {
+              newDots[todo.date] = { dots: [] };
+            }
+            newDots[todo.date].dots.push({
+              key: `${todo.name}-${folder.name}`,
+              color: c,
             });
           });
+        });
 
-          setDots(newDots);
+        filterEvents(res);
+      }
 
-          // update filteredEvents
-          filterEvents(res);
-        }
-      })()
-    }, [])
-  )
+      try {
+        const year = new Date().getFullYear();
+        const response = await fetch(
+          `https://date.nager.at/api/v3/PublicHolidays/${year}/CA`
+        );
+        const holidayData = await response.json();
 
+        setHolidays(holidayData);
+
+        holidayData.forEach((h) => {
+          const date = h.date;
+          if (!newDots[date]) newDots[date] = { dots: [] };
+
+          newDots[date].dots.push({
+            key: `holiday-${h.name}`,
+            color: "#ff4444",
+          });
+        });
+      } catch (err) {
+        console.log("Holiday API error:", err);
+      }
+
+      setDots(newDots);
+    })();
+  }, [])
+);
+
+  // Load everything on screen mount
+  useEffect(() => {
+    (async () => {
+      await loadUserData();
+      await fetchCanadianHolidays();
+      filterEvents(events);
+    })();
+  }, []);
+
+  // Re-filter whenever the user selects a new date
   useEffect(() => {
     filterEvents(events);
-  }, [selectedDate])
+  }, [selectedDate]);
+
+  const holidayList =
+  holidays[selectedDate] && holidays[selectedDate].length > 0
+    ? holidays[selectedDate]
+    : [];
+
 
   return (
     <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
@@ -227,6 +306,17 @@ export default function WelcomeScreen() {
                 <Feather name="x" size={26} color="black" />
               </TouchableOpacity>
             </View>
+
+              {holidayList.length > 0 && (
+                <View style={styles.holidayContainer}>
+                  {holidayList.map((h, idx) => (
+                    <Text key={idx} style={styles.holidayText}>
+                      🎉 {h.name}
+                    </Text>
+                  ))}
+                </View>
+              )}
+
             <View style={styles.todoHeader}>
               <TouchableOpacity onPress={prevDate}>
                 <Feather name="chevron-left" size={26} color="black" />
@@ -236,6 +326,20 @@ export default function WelcomeScreen() {
                 <Feather name="chevron-right" size={26} color="black" />
               </TouchableOpacity>
             </View>
+
+              {/* HOLIDAY SECTION */}
+              {(() => {
+                const holiday = holidays.find(h => h.date === selectedDate);
+                if (!holiday) return null;
+
+                return (
+                  <View style={styles.holidayContainer}>
+                    <Text style={styles.holidayLabel}>Holiday</Text>
+                    <Text style={styles.holidayName}>{holiday.name}</Text>
+                  </View>
+                );
+              })()}
+
             {filteredEvents.map((item, i) => {
               return item.todos.length > 0 ? (
                 <View key={i} style={styles.todoItemContainer}>
@@ -436,29 +540,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  dropdown: {
+    position: 'absolute',
+    top: 40,
+    right: 2,
+    backgroundColor: '#ffe7e7ff' ,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 6,
+    width: 100,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: 'black',
+    paddingVertical: 6,
+    paddingHorizontal: 17,
+    textAlign: 'left',
+  },
 
-dropdown: {
-  position: 'absolute',
-  top: 40,
-  right: 2,
-  backgroundColor: '#ffe7e7ff' ,
-  borderWidth: 1,
-  borderRadius: 8,
-  paddingVertical: 6,
-  width: 100,
-  shadowColor: '#000',
-  shadowOpacity: 0.2,
-  shadowOffset: { width: 0, height: 2 },
-  shadowRadius: 4,
-  elevation: 3,
-  zIndex: 10,
-},
-dropdownText: {
-  fontSize: 16,
-  color: 'black',
-  paddingVertical: 6,
-  paddingHorizontal: 17,
-  textAlign: 'left',
-}
+  holidayContainer: {
+    backgroundColor: "#fffbe6",
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 10,
+    marginVertical: 10,
+    width: "98%",
+    borderColor: "#ffe7a3",
+    borderWidth: 1,
+  },
+
+  holidayLabel: {
+    fontSize: 10,
+    color: "#b79b00",
+    textTransform: "uppercase",
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+
+  holidayName: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#6b4e00",
+  },
 
 });

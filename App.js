@@ -14,6 +14,8 @@ import TimerScreen from './src/screens/TimerScreen.js';
 import FoldersScreen from './src/screens/FoldersScreen.js';
 import FolderScreen from './src/screens/FolderScreen.js';
 import CameraScreen from './src/screens/CameraScreen.js';
+import ImageGridScreen from './src/screens/ImageGridScreen.js';
+
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -50,6 +52,7 @@ export default function App() {
               <>
                 <Stack.Screen name="Home" component={HomeNavigator} />
                 <Stack.Screen name="FolderScreen" component={FolderScreen} />
+                <Stack.Screen name="ImageGrid" component={ImageGridScreen} />
                 <Stack.Screen name="Camera" component={CameraScreen} />
               </>
             ) : (
