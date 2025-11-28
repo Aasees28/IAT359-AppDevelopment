@@ -22,13 +22,7 @@ export default function FolderScreen({ navigation, route }) {
     const [selectedImage, setSelectedImage] = useState(null); // { uri, type, date }
     const { name } = route.params.item;
     
-
-    const [data, setData] = useState({
-        ...route.params.item,
-        notes: route.params.item.notes || [],
-        todos: route.params.item.todos || []
-    });
-
+    const [data, setData] = useState(route.params.item);
 
     useFocusEffect(
         useCallback(() => {
@@ -290,7 +284,7 @@ export default function FolderScreen({ navigation, route }) {
                             style={styles.plusBox}
                             onPress={() => navigation.navigate("ImageGrid", { images: data.notes })}
                         >
-                            <Text style={styles.plusText}>+</Text>
+                            <Feather name="chevron-right" size={30} color="black" />
                         </TouchableOpacity>
                     )}
 
@@ -359,8 +353,8 @@ export default function FolderScreen({ navigation, route }) {
                 }}
             >
                 <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
+                    <View style={styles.settingModalContent}>
+                        <View style={styles.settingModalHeader}>
                             <Text style={styles.modalTitle}>Setting</Text>
                         </View>
                         <TouchableOpacity style={styles.modalDeleteButton} onPress={handleDeleteFolder}>
@@ -512,6 +506,12 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
+    settingModalContent: {
+        width: 300,
+        padding: 20,
+        backgroundColor: 'white',
+        borderRadius: 10, 
+    }, 
     imageModalContainer: {
         flex: 1,
         paddingTop: 40,
@@ -526,6 +526,12 @@ export const styles = StyleSheet.create({
     },
     imageModalContent: {
         width: '100%',
+    },
+    settingModalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: 20,
     },
     modalHeader: {
         flexDirection: 'row',
@@ -659,23 +665,19 @@ export const styles = StyleSheet.create({
         width: '100%',
         aspectRatio: 1,
     },
-plusBox: {
-    width: 100,
-    height: 100,
-    borderWidth: 2,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f7f7f7",
-    marginRight: 10,
-},
+    plusBox: {
+        width: 100,
+        height: 100,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#aaa',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 
-plusText: {
-    fontSize: 40,
-    color: "#888",
-    fontWeight: "bold",
-},
-
-
+    plusText: {
+        fontSize: 40,
+        color: "#888",
+        fontWeight: "bold",
+    },
 });

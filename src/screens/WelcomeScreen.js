@@ -34,19 +34,18 @@ export default function WelcomeScreen() {
   }
 
   const fetchCanadianHolidays = async () => {
-  try {
-    const currentYear = new Date().getFullYear();
-    const url = `https://canada-holidays.ca/api/v1/holidays?year=${currentYear}`;
+    try {
+      const currentYear = new Date().getFullYear();
+      const url = `https://canada-holidays.ca/api/v1/holidays?year=${currentYear}`;
 
-    const response = await fetch(url);
-    const json = await response.json();
+      const response = await fetch(url);
+      const json = await response.json();
 
-    if (!json.holidays) {
-      console.log("No holidays found");
-      return;
-    }
+      if (!json.holidays) {
+        return;
+      }
 
-    const holidayDots = {};
+      const holidayDots = {};
       json.holidays.forEach((h) => {
         holidayDots[h.date] = {
           dots: [{ color: "red" }],
@@ -57,11 +56,7 @@ export default function WelcomeScreen() {
 
       setHolidays(json.holidays);
       setDots((prev) => ({ ...prev, ...holidayDots }));
-
-      console.log("Fetched Holidays:", json.holidays);
-
     } catch (error) {
-      console.error("Holiday API Error:", error);
     }
   };
 
@@ -94,13 +89,6 @@ export default function WelcomeScreen() {
     await storeItem("folders", updated);
 
   }
-
-  const openHolidayModal = (date) => {
-  const holidayName = holidays[date]?.name || "Holiday";
-  setSelectedHoliday(holidayName);
-  setHolidayModal(true);
-};
-
 
   const onSelectDate = (date) => {
     const selected = date.dateString;
@@ -172,82 +160,82 @@ export default function WelcomeScreen() {
     setMenuVisible(false);
   }
   
-useFocusEffect(
-  useCallback(() => {
-    (async () => {
-      const user = auth.currentUser;
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            const { firstName } = userDoc.data();
-            setUserName(firstName);
-            await storeItem("userName", firstName);
-          } else {
-            console.log("No Firestore record found, using cached name");
-            const cachedName = await getItem("userName");
-            if (cachedName) setUserName(cachedName);
-          }
-        } catch (error) {
-          console.log("Error fetching Firestore name:", error.message);
-        }
-      } else {
-        console.log("No user logged in");
-      }
-
-      const res = await getItem("folders");
-      console.log("res: ", res);
-
-      let newDots = {};
-
-      if (!res) {
-        setEvents([]);
-        setDots({});
-      } else {
-        setEvents(res);
-
-        res.forEach((folder) => {
-          const c = randomColor();
-          folder.todos.forEach((todo) => {
-            if (!newDots[todo.date]) {
-              newDots[todo.date] = { dots: [] };
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const user = auth.currentUser;
+        if (user) {
+          try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+              const { firstName } = userDoc.data();
+              setUserName(firstName);
+              await storeItem("userName", firstName);
+            } else {
+              console.log("No Firestore record found, using cached name");
+              const cachedName = await getItem("userName");
+              if (cachedName) setUserName(cachedName);
             }
-            newDots[todo.date].dots.push({
-              key: `${todo.name}-${folder.name}`,
-              color: c,
+          } catch (error) {
+            console.log("Error fetching Firestore name:", error.message);
+          }
+        } else {
+          console.log("No user logged in");
+        }
+
+        const res = await getItem("folders");
+        console.log("res: ", res);
+
+        let newDots = {};
+
+        if (!res) {
+          setEvents([]);
+          setDots({});
+        } else {
+          setEvents(res);
+
+          res.forEach((folder) => {
+            const c = randomColor();
+            folder.todos.forEach((todo) => {
+              if (!newDots[todo.date]) {
+                newDots[todo.date] = { dots: [] };
+              }
+              newDots[todo.date].dots.push({
+                key: `${todo.name}-${folder.name}`,
+                color: c,
+              });
             });
           });
-        });
 
-        filterEvents(res);
-      }
+          filterEvents(res);
+        }
 
-      try {
-        const year = new Date().getFullYear();
-        const response = await fetch(
-          `https://date.nager.at/api/v3/PublicHolidays/${year}/CA`
-        );
-        const holidayData = await response.json();
+        try {
+          const year = new Date().getFullYear();
+          const response = await fetch(
+            `https://date.nager.at/api/v3/PublicHolidays/${year}/CA`
+          );
+          const holidayData = await response.json();
 
-        setHolidays(holidayData);
+          setHolidays(holidayData);
 
-        holidayData.forEach((h) => {
-          const date = h.date;
-          if (!newDots[date]) newDots[date] = { dots: [] };
+          holidayData.forEach((h) => {
+            const date = h.date;
+            if (!newDots[date]) newDots[date] = { dots: [] };
 
-          newDots[date].dots.push({
-            key: `holiday-${h.name}`,
-            color: "#ff4444",
+            newDots[date].dots.push({
+              key: `holiday-${h.name}`,
+              color: "#ff4444",
+            });
           });
-        });
-      } catch (err) {
-        console.log("Holiday API error:", err);
-      }
+        } catch (err) {
+          console.log("Holiday API error:", err);
+        }
 
-      setDots(newDots);
-    })();
-  }, [])
-);
+        setDots(newDots);
+      })();
+    }, [])
+  );
 
   // Load everything on screen mount
   useEffect(() => {
@@ -263,11 +251,21 @@ useFocusEffect(
     filterEvents(events);
   }, [selectedDate]);
 
-  const holidayList =
-  holidays[selectedDate] && holidays[selectedDate].length > 0
-    ? holidays[selectedDate]
-    : [];
+  function HolidayBlock() {
+    const holiday = holidays.filter(h => h.date === selectedDate);
+    if (!holiday) return null;
 
+    return (
+      <>
+        {holiday.map((h, i) => (
+          <View style={styles.holidayContainer} key={i}>
+            <Text style={styles.holidayLabel}>Holiday</Text>
+            <Text style={styles.holidayName}>{h.name}</Text>
+          </View>
+        ))}
+      </>
+    );
+  }
 
   return (
     <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
@@ -307,16 +305,6 @@ useFocusEffect(
               </TouchableOpacity>
             </View>
 
-              {holidayList.length > 0 && (
-                <View style={styles.holidayContainer}>
-                  {holidayList.map((h, idx) => (
-                    <Text key={idx} style={styles.holidayText}>
-                      🎉 {h.name}
-                    </Text>
-                  ))}
-                </View>
-              )}
-
             <View style={styles.todoHeader}>
               <TouchableOpacity onPress={prevDate}>
                 <Feather name="chevron-left" size={26} color="black" />
@@ -327,43 +315,34 @@ useFocusEffect(
               </TouchableOpacity>
             </View>
 
-              {/* HOLIDAY SECTION */}
-              {(() => {
-                const holiday = holidays.find(h => h.date === selectedDate);
-                if (!holiday) return null;
+            <ScrollView>
+              <HolidayBlock />
 
-                return (
-                  <View style={styles.holidayContainer}>
-                    <Text style={styles.holidayLabel}>Holiday</Text>
-                    <Text style={styles.holidayName}>{holiday.name}</Text>
+              {filteredEvents.map((item, i) => {
+                return item.todos.length > 0 ? (
+                  <View key={i} style={styles.todoItemContainer}>
+                    <View style={styles.todoItemHeader}>
+                      <Text style={[styles.todoHeaderTitle, { backgroundColor: "#fff6c2"}]}>{item.name}</Text>
+                    </View>
+                    <View style={styles.todos}>
+                      {item.todos.map((todo, i) => (
+                        <View style={styles.todoItem} key={i}>
+                          <CheckBox
+                            isChecked={todo.checked}
+                            onClick={() => onCheck(item.name, todo.name)}
+                            checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
+                            unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
+                          />
+                          <Text>{todo.name}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
-                );
-              })()}
-
-            {filteredEvents.map((item, i) => {
-              return item.todos.length > 0 ? (
-                <View key={i} style={styles.todoItemContainer}>
-                  <View style={styles.todoItemHeader}>
-                    <Text style={[styles.todoHeaderTitle, { backgroundColor: "#fff6c2"}]}>{item.name}</Text>
-                  </View>
-                  <View style={styles.todos}>
-                    {item.todos.map((todo, i) => (
-                      <View style={styles.todoItem} key={i}>
-                        <CheckBox
-                          isChecked={todo.checked}
-                          onClick={() => onCheck(item.name, todo.name)}
-                          checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
-                          unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
-                        />
-                        <Text>{todo.name}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : (
-                <View key={i}></View>
-              )
-            })}
+                ) : (
+                  <View key={i}></View>
+                )
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -491,7 +470,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 15,
+    marginTop: 5,
+    marginBottom: 10,
   },  
   todoWrapper: {
     shadowColor: "#000",
@@ -565,19 +545,19 @@ const styles = StyleSheet.create({
   },
 
   holidayContainer: {
-    backgroundColor: "#fffbe6",
+    backgroundColor: "#ffe6e6ff",
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 10,
-    marginVertical: 10,
+    marginBottom: 10,
     width: "98%",
-    borderColor: "#ffe7a3",
+    borderColor: "#ffa3a3ff",
     borderWidth: 1,
   },
 
   holidayLabel: {
     fontSize: 10,
-    color: "#b79b00",
+    color: "#b70000ff",
     textTransform: "uppercase",
     fontWeight: "bold",
     marginBottom: 4,
@@ -586,7 +566,7 @@ const styles = StyleSheet.create({
   holidayName: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#6b4e00",
+    color: "#6b0000ff",
   },
 
 });
