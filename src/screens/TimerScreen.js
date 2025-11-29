@@ -5,6 +5,8 @@ import Feather from '@expo/vector-icons/Feather';
 import Header from '../components/Header';
 import { getItem } from '../utils/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import HistoryModal from "../screens/HistoryModal";
+
 
 export default function TimerScreen() {
   const [focusHours, setFocusHours] = useState('0');
@@ -17,6 +19,10 @@ export default function TimerScreen() {
   const [justFinished, setJustFinished] = useState(false);
   const [folders, setFolders] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState(null);
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const [dailyTotal, setDailyTotal] = useState(0);
+
 
   const intervalRef = useRef(null);
   const flatListRef = useRef(null);
@@ -39,6 +45,19 @@ useFocusEffect(
     }
   }, [])
 );
+
+  const saveHistory = async (entry) => {
+    try {
+      const existing = await AsyncStorage.getItem("pomodoroHistory");
+      let logs = existing ? JSON.parse(existing) : [];
+
+      logs.push(entry);
+
+      await AsyncStorage.setItem("pomodoroHistory", JSON.stringify(logs));
+    } catch (e) {
+      console.log("Error saving history:", e);
+    }
+  };
 
   const formatTime = (secs) => {
     const hh = Math.floor(secs / 3600);
@@ -101,8 +120,6 @@ const handleStart = async () => {
   await AsyncStorage.setItem('activeFolder', selectedFolder.name);
 };
 
-
-
   const handlePause = () => {
     setIsPaused(true);
     setIsRunning(false);
@@ -140,6 +157,27 @@ const handleStart = async () => {
     switchSession(session);
   };
 
+useEffect(() => {
+  const loadHistory = async () => {
+    const existing = await AsyncStorage.getItem("pomodoroHistory");
+    setLogs(existing ? JSON.parse(existing) : []);
+  };
+
+  loadHistory();
+}, []);
+
+useEffect(() => {
+  const loadDailyTotal = async () => {
+    const today = new Date().toISOString().split("T")[0];
+
+    const totals = JSON.parse(await AsyncStorage.getItem("dailyTotals")) || {};
+    setDailyTotal(totals[today] || 0);
+  };
+
+  loadDailyTotal();
+}, []);
+
+
   useEffect(() => {
     if (isRunning) {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -156,21 +194,56 @@ const handleStart = async () => {
     };
   }, [isRunning]);
 
-  useEffect(() => {
-    if (
-      secondsLeft <= 0 &&
-      (session === 'focus' || session === 'rest') &&
-      (isRunning || isPaused)
-    ) {
-      setJustFinished(true);
-      setIsRunning(false);
-      setTimeout(async () => {
-        setJustFinished(false);
-        await AsyncStorage.removeItem('activeFolder');
-        switchSession(session);
-      }, 800);
-    }
-  }, [secondsLeft, session, isRunning, isPaused]);
+useEffect(() => {
+  if (
+    secondsLeft <= 0 &&
+    (session === "focus" || session === "rest") &&
+    (isRunning || isPaused)
+  ) {
+    setJustFinished(true);
+    setIsRunning(false);
+
+    setTimeout(async () => {
+      setJustFinished(false);
+
+      const entry = {
+        date: new Date().toISOString().split("T")[0],
+        time: new Date().toLocaleTimeString(),
+        sessionType: session,
+        folder: selectedFolder ? selectedFolder.name : "No folder",
+        minutes:
+          session === "focus"
+            ? getFocusSeconds() / 60
+            : getRestSeconds() / 60,
+      };
+
+      await saveHistory(entry);
+
+      setLogs((prev) => [...prev, entry]);
+
+      if (session === "focus") {
+        const today = new Date().toISOString().split("T")[0];
+
+        let totals = JSON.parse(await AsyncStorage.getItem("dailyTotals")) || {};
+
+        let previous = totals[today] || 0;
+        let updated = previous + entry.minutes;
+
+        totals[today] = updated;
+
+        await AsyncStorage.setItem("dailyTotals", JSON.stringify(totals));
+
+       
+        setDailyTotal(updated);
+      }
+
+      await AsyncStorage.removeItem("activeFolder");
+      switchSession(session);
+
+    }, 800);
+  }
+}, [secondsLeft, session, isRunning, isPaused]);
+
 
   const alertResetFolder = (newFolder) => {
     Alert.alert(
@@ -192,6 +265,22 @@ const handleStart = async () => {
     );
   };
 
+  const GoalProgressBar = ({ total, goal }) => {
+  const percentage = Math.min((total / goal) * 100, 100);
+
+  return (
+    <View style={styles.goalContainer}>
+      <Text style={styles.goalText}>
+        {Math.round(total)} / {goal} min focus today
+      </Text>
+
+      <View style={styles.goalBar}>
+        <View style={[styles.goalFill, { width: `${percentage}%` }]} />
+      </View>
+    </View>
+  );
+};
+
 return (
   <SafeAreaView style={styles.container}>
     <View
@@ -206,7 +295,7 @@ return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.inner}>
             <Text style={styles.title}>Timer</Text>
-
+            <GoalProgressBar total={dailyTotal} goal={80} />
               <View style={[styles.sectionFrame, styles.folderBox]}>
                 <Text style={styles.mainTitle}>Folders</Text>
 
@@ -250,7 +339,7 @@ return (
                                 alertResetFolder(item);
                               } else {
                                 if (selectedFolder?.name === item.name) {
-                                  setSelectedFolder(null); // Deselect if clicked again
+                                  setSelectedFolder(null); 
                                 } else {
                                   setSelectedFolder(item);
                                 }
@@ -418,10 +507,23 @@ return (
               </View>
             </View>
 
+            {/* History Button */}
+            <TouchableOpacity 
+              onPress={() => setHistoryVisible(true)} 
+              style={styles.historyButton}
+            >
+              <Text style={styles.historyButtonText}>View History</Text>
+            </TouchableOpacity>
           </View>
         </TouchableWithoutFeedback>
       </View>
       </View>
+
+      <HistoryModal
+        visible={historyVisible}
+        onClose={() => setHistoryVisible(false)}
+        logs={logs}
+      />
     </SafeAreaView>
   );
 }
@@ -466,7 +568,7 @@ const styles = StyleSheet.create({
   inner: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 35,
     paddingBottom: 80,
     justifyContent: 'space-between',
     
@@ -477,7 +579,7 @@ const styles = StyleSheet.create({
     fontSize: 45,
     fontWeight: '700',
     borderWidth: 1,
-    padding: 10,
+    padding: 8,
     textAlign: 'center',
     marginBottom: 20,
     borderRadius: 12,
@@ -490,7 +592,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginBottom: 10,
     marginTop: 6,
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 10,
     alignItems: 'center',
   },
@@ -541,7 +643,7 @@ const styles = StyleSheet.create({
   timerBox: {
     alignItems: 'center',
     marginVertical: 10,
-    padding: 18,
+    padding: 7,
     marginBottom: 20,
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 1)',
@@ -553,33 +655,33 @@ const styles = StyleSheet.create({
   },
   sessionLabel: {
     fontSize: 16,
-    marginBottom: 8,
+    marginBottom: 2,
     fontWeight: '600',
   },
   timeText: {
-    fontSize: 48,
+    fontSize: 50,
     fontWeight: '800',
   },
 
     shadowFocus: {
-    shadowColor: '#8ecf63', // green glow
+    shadowColor: '#8ecf63',
     shadowOpacity: 0.4,
     shadowRadius: 10,
 
   },
 
   shadowRest: {
-    shadowColor: '#69b2cf', // blue glow
+    shadowColor: '#69b2cf',
     shadowOpacity: 0.4,
     shadowRadius: 10,
   },
 
   shadowIdle: {
-    shadowColor: '#aaaaaa', // neutral gray
+    shadowColor: '#aaaaaa',
   },
 
   shadowPaused: {
-    shadowColor: '#d8be54', // gold/yellow glow
+    shadowColor: '#d8be54', 
     shadowOpacity: 0.4,
     shadowRadius: 10,
   },
@@ -679,4 +781,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
+  
+historyButton: {
+  backgroundColor: '#fff',
+  borderWidth: 1,
+  borderRadius: 6,
+  paddingHorizontal: 10,
+  paddingVertical: 4,
+  borderColor: '#0b2b2f',
+  alignSelf: 'center',
+  marginTop: -5,
+},
+
+historyButtonText: {
+  color: '#0b2b2f',
+  fontWeight: '600',
+  textAlign: 'center',
+  fontSize: 14,
+},
+
+ // ---- Goal Tracker ----
+
+goalContainer: {
+  width: "100%",
+  marginTop: -20,
+  marginBottom: 10,
+  alignItems: "center",
+},
+
+goalText: {
+  fontSize: 14,
+  fontWeight: "600",
+  marginBottom: 7,
+  paddingTop: 12,
+  color: "#0b2b2f",
+},
+
+goalBar: {
+  width: "80%",
+  height: 10,
+  backgroundColor: "#ddd",
+  borderRadius: 10,
+  overflow: "hidden",
+},
+
+goalFill: {
+  height: "100%",
+  backgroundColor: "#69b2cf",
+},
+
 });
