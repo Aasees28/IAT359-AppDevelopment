@@ -28,23 +28,23 @@ export default function TimerScreen() {
   const flatListRef = useRef(null);
   const [currentOffset, setCurrentOffset] = useState(0);
 
-useFocusEffect(
-  useCallback(() => {
-    const fetchFolders = async () => {
-      const storedFolders = await getItem("folders");
-      if (storedFolders) setFolders(storedFolders);
-      else setFolders([]);
-    };
+  useFocusEffect(
+    useCallback(() => {
+      const fetchFolders = async () => {
+        const storedFolders = await getItem("folders");
+        if (storedFolders) setFolders(storedFolders);
+        else setFolders([]);
+      };
 
-    fetchFolders();
+      fetchFolders();
 
-    const f = folders.filter((item) => item.name == selectedFolder);
+      const f = folders.filter((item) => item.name == selectedFolder);
 
-    if (f == null || f.length == 0) {
-      setSelectedFolder("");
-    }
-  }, [])
-);
+      if (f == null || f.length == 0) {
+        setSelectedFolder("");
+      }
+    }, [])
+  );
 
   const saveHistory = async (entry) => {
     try {
@@ -67,58 +67,49 @@ useFocusEffect(
     return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
   };
 
-  const getBackgroundColor = () => {
-    if (justFinished) return styles.bgFinished.backgroundColor;
-    if (session === 'idle') return styles.bgIdle.backgroundColor;
-    if (isPaused) return styles.bgPaused.backgroundColor;
-    if (session === 'focus') return styles.bgFocus.backgroundColor;
-    if (session === 'rest') return styles.bgRest.backgroundColor;
-    return styles.bgIdle.backgroundColor;
-  };
-
   const getFocusSeconds = () =>
     parseInt(focusHours || 0) * 3600 + parseInt(focusMinutes || 0) * 60;
   const getRestSeconds = () => parseInt(restMinutes || 0) * 60;
 
-const handleStart = async () => {
-  if (!selectedFolder) {
-    Alert.alert(
-      'No Folder Selected',
-      'You haven’t selected a folder. Do you want to proceed anyway?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Proceed Anyway',
-          onPress: async () => {
-            if (session === 'idle' || session === 'rest') {
-              setSession('focus');
-              setSecondsLeft(getFocusSeconds());
-            } else {
-              setSession('rest');
-              setSecondsLeft(getRestSeconds());
-            }
-            setIsRunning(true);
-            setIsPaused(false);
+  const handleStart = async () => {
+    if (!selectedFolder) {
+      Alert.alert(
+        'No Folder Selected',
+        'You haven’t selected a folder. Do you want to proceed anyway?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Proceed Anyway',
+            onPress: async () => {
+              if (session === 'idle' || session === 'rest') {
+                setSession('focus');
+                setSecondsLeft(getFocusSeconds());
+              } else {
+                setSession('rest');
+                setSecondsLeft(getRestSeconds());
+              }
+              setIsRunning(true);
+              setIsPaused(false);
+            },
           },
-        },
-      ]
-    );
-    return;
-  }
+        ]
+      );
+      return;
+    }
 
-  // Normal start flow if folder is selected
-  if (session === 'idle' || session === 'rest') {
-    setSession('focus');
-    setSecondsLeft(getFocusSeconds());
-  } else {
-    setSession('rest');
-    setSecondsLeft(getRestSeconds());
-  }
-  setIsRunning(true);
-  setIsPaused(false);
+    // Normal start flow if folder is selected
+    if (session === 'idle' || session === 'rest') {
+      setSession('focus');
+      setSecondsLeft(getFocusSeconds());
+    } else {
+      setSession('rest');
+      setSecondsLeft(getRestSeconds());
+    }
+    setIsRunning(true);
+    setIsPaused(false);
 
-  await AsyncStorage.setItem('activeFolder', selectedFolder.name);
-};
+    await AsyncStorage.setItem('activeFolder', selectedFolder.name);
+  };
 
   const handlePause = () => {
     setIsPaused(true);
@@ -157,26 +148,25 @@ const handleStart = async () => {
     switchSession(session);
   };
 
-useEffect(() => {
-  const loadHistory = async () => {
-    const existing = await AsyncStorage.getItem("pomodoroHistory");
-    setLogs(existing ? JSON.parse(existing) : []);
-  };
+  useEffect(() => {
+    const loadHistory = async () => {
+      const existing = await AsyncStorage.getItem("pomodoroHistory");
+      setLogs(existing ? JSON.parse(existing) : []);
+    };
 
-  loadHistory();
-}, []);
+    loadHistory();
+  }, []);
 
-useEffect(() => {
-  const loadDailyTotal = async () => {
-    const today = new Date().toISOString().split("T")[0];
+  useEffect(() => {
+    const loadDailyTotal = async () => {
+      const today = new Date().toISOString().split("T")[0];
 
-    const totals = JSON.parse(await AsyncStorage.getItem("dailyTotals")) || {};
-    setDailyTotal(totals[today] || 0);
-  };
+      const totals = JSON.parse(await AsyncStorage.getItem("dailyTotals")) || {};
+      setDailyTotal(totals[today] || 0);
+    };
 
-  loadDailyTotal();
-}, []);
-
+    loadDailyTotal();
+  }, []);
 
   useEffect(() => {
     if (isRunning) {
@@ -194,55 +184,55 @@ useEffect(() => {
     };
   }, [isRunning]);
 
-useEffect(() => {
-  if (
-    secondsLeft <= 0 &&
-    (session === "focus" || session === "rest") &&
-    (isRunning || isPaused)
-  ) {
-    setJustFinished(true);
-    setIsRunning(false);
+  useEffect(() => {
+    if (
+      secondsLeft <= 0 &&
+      (session === "focus" || session === "rest") &&
+      (isRunning || isPaused)
+    ) {
+      setJustFinished(true);
+      setIsRunning(false);
 
-    setTimeout(async () => {
-      setJustFinished(false);
+      setTimeout(async () => {
+        setJustFinished(false);
 
-      const entry = {
-        date: new Date().toISOString().split("T")[0],
-        time: new Date().toLocaleTimeString(),
-        sessionType: session,
-        folder: selectedFolder ? selectedFolder.name : "No folder",
-        minutes:
-          session === "focus"
-            ? getFocusSeconds() / 60
-            : getRestSeconds() / 60,
-      };
+        const entry = {
+          date: new Date().toISOString().split("T")[0],
+          time: new Date().toLocaleTimeString(),
+          sessionType: session,
+          folder: selectedFolder ? selectedFolder.name : "No folder",
+          minutes:
+            session === "focus"
+              ? getFocusSeconds() / 60
+              : getRestSeconds() / 60,
+        };
 
-      await saveHistory(entry);
+        await saveHistory(entry);
 
-      setLogs((prev) => [...prev, entry]);
+        setLogs((prev) => [...prev, entry]);
 
-      if (session === "focus") {
-        const today = new Date().toISOString().split("T")[0];
+        if (session === "focus") {
+          const today = new Date().toISOString().split("T")[0];
 
-        let totals = JSON.parse(await AsyncStorage.getItem("dailyTotals")) || {};
+          let totals = JSON.parse(await AsyncStorage.getItem("dailyTotals")) || {};
 
-        let previous = totals[today] || 0;
-        let updated = previous + entry.minutes;
+          let previous = totals[today] || 0;
+          let updated = previous + entry.minutes;
 
-        totals[today] = updated;
+          totals[today] = updated;
 
-        await AsyncStorage.setItem("dailyTotals", JSON.stringify(totals));
+          await AsyncStorage.setItem("dailyTotals", JSON.stringify(totals));
 
-       
-        setDailyTotal(updated);
-      }
+        
+          setDailyTotal(updated);
+        }
 
-      await AsyncStorage.removeItem("activeFolder");
-      switchSession(session);
+        await AsyncStorage.removeItem("activeFolder");
+        switchSession(session);
 
-    }, 800);
-  }
-}, [secondsLeft, session, isRunning, isPaused]);
+      }, 800);
+    }
+  }, [secondsLeft, session, isRunning, isPaused]);
 
 
   const alertResetFolder = (newFolder) => {
@@ -266,20 +256,20 @@ useEffect(() => {
   };
 
   const GoalProgressBar = ({ total, goal }) => {
-  const percentage = Math.min((total / goal) * 100, 100);
+    const percentage = Math.min((total / goal) * 100, 100);
 
-  return (
-    <View style={styles.goalContainer}>
-      <Text style={styles.goalText}>
-        {Math.round(total)} / {goal} min focus today
-      </Text>
+    return (
+      <View style={styles.goalContainer}>
+        <Text style={styles.goalText}>
+          {Math.round(total)} / {goal} min focus today
+        </Text>
 
-      <View style={styles.goalBar}>
-        <View style={[styles.goalFill, { width: `${percentage}%` }]} />
+        <View style={styles.goalBar}>
+          <View style={[styles.goalFill, { width: `${percentage}%` }]} />
+        </View>
       </View>
-    </View>
-  );
-};
+    );
+  };
 
 return (
   <SafeAreaView style={styles.container}>
@@ -782,52 +772,52 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   
-historyButton: {
-  backgroundColor: '#fff',
-  borderWidth: 1,
-  borderRadius: 6,
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderColor: '#0b2b2f',
-  alignSelf: 'center',
-  marginTop: -5,
-},
+  historyButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderColor: '#0b2b2f',
+    alignSelf: 'center',
+    marginTop: -5,
+  },
 
-historyButtonText: {
-  color: '#0b2b2f',
-  fontWeight: '600',
-  textAlign: 'center',
-  fontSize: 14,
-},
+  historyButtonText: {
+    color: '#0b2b2f',
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: 14,
+  },
 
- // ---- Goal Tracker ----
+  // ---- Goal Tracker ----
 
-goalContainer: {
-  width: "100%",
-  marginTop: -20,
-  marginBottom: 10,
-  alignItems: "center",
-},
+  goalContainer: {
+    width: "100%",
+    marginTop: -20,
+    marginBottom: 10,
+    alignItems: "center",
+  },
 
-goalText: {
-  fontSize: 14,
-  fontWeight: "600",
-  marginBottom: 7,
-  paddingTop: 12,
-  color: "#0b2b2f",
-},
+  goalText: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 7,
+    paddingTop: 12,
+    color: "#0b2b2f",
+  },
 
-goalBar: {
-  width: "80%",
-  height: 10,
-  backgroundColor: "#ddd",
-  borderRadius: 10,
-  overflow: "hidden",
-},
+  goalBar: {
+    width: "80%",
+    height: 10,
+    backgroundColor: "#ddd",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
 
-goalFill: {
-  height: "100%",
-  backgroundColor: "#69b2cf",
-},
+  goalFill: {
+    height: "100%",
+    backgroundColor: "#69b2cf",
+  },
 
 });

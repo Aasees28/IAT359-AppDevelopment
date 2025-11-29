@@ -290,6 +290,7 @@ export default function WelcomeScreen() {
           </View>
       </View>
 
+      {/* expanded daily todo modal */}
       <Modal
         transparent={true}
         visible={expanded}

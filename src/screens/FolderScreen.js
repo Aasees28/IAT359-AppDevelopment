@@ -279,6 +279,10 @@ export default function FolderScreen({ navigation, route }) {
                         </TouchableOpacity>
                     ))}
 
+                    {data.notes.length === 0 && (
+                        <Text style={styles.emptyContainerText}>Start adding your lecture notes here!</Text>
+                    )}
+
                     {data.notes && data.notes.length > 2 && (
                         <TouchableOpacity
                             style={styles.plusBox}
@@ -674,10 +678,19 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     plusText: {
         fontSize: 40,
         color: "#888",
         fontWeight: "bold",
     },
+    emptyContainerText: {
+        backgroundColor: '#eee',
+        paddingHorizontal: 8,
+        paddingVertical: 5,
+        borderRadius: 20,
+        width: '75%',
+        marginHorizontal: 'auto',
+        textAlign: 'center',
+        marginTop: 10,
+    }
 });

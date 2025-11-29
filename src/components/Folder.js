@@ -11,9 +11,8 @@ export default function Folder({ item }) {
     return (
         <View>
             <TouchableOpacity onPress={openFolder} style={styles.container}>
-                <Text>{item.name}</Text>
+                <Text style={styles.title}>{item.name}</Text>
                 <View style={styles.loadMore}>
-                    <Text>{(item.notes && item.notes.length) + (item.todos && item.todos.length)}</Text>
                     <Feather name="chevron-right" size={24} color="black" />
                 </View>
             </TouchableOpacity>
@@ -31,6 +30,9 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+    },
+    title: {
+        fontWeight: 600,
     },
     loadMore:{
         flexDirection: 'row',
