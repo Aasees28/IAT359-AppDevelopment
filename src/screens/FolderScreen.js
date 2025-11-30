@@ -229,6 +229,43 @@ export default function FolderScreen({ navigation, route }) {
         setTodoModalVisible(false);
     }
 
+    // delete a long-pressed todo item
+    const deleteTodo = (todo) => {
+        Alert.alert(
+            "Delete this todo",
+            "Are you sure you want to delete this todo?",
+            [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Delete",
+                style: "destructive",
+                onPress: async () => {
+                    try {
+                        // remove the selected todo from the folder's todos
+                        const filtered = data.todos.filter((item) => !(item.name === todo.name && item.date === todo.date));
+
+                        const updated = { ...data, todos: filtered };
+                        setData(updated);
+
+                        const res = await getItem("folders");
+                        res.forEach((folder, i) => {
+                            if (folder.name == data.name) {
+                                res[i] = updated;
+                            }
+                        })
+
+                        await storeItem('folders', res);
+
+                        Alert.alert("Deleted", "The todo has been deleted.");
+                    } catch (error) {
+                        console.error("Error deleting todo:", error);
+                    }
+                },
+            },
+            ]
+        );
+    }
+
     // custom component to run a video dynamically
     function VideoPreview({ uri, style, contentFit }) {
         const player = useVideoPlayer(uri);
@@ -316,10 +353,10 @@ export default function FolderScreen({ navigation, route }) {
                                     checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
                                     unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
                                 />
-                                <View style={styles.todoContent}>
+                                <TouchableOpacity style={styles.todoContent} onLongPress={() => deleteTodo(todo)}>
                                     <Text style={styles.todoName}>{todo.name}</Text>
                                     <Text style={styles.todoDate}>{todo.date}</Text>
-                                </View>
+                                </TouchableOpacity>
                             </View>)}
                         )}
                     </View>
