@@ -46,7 +46,7 @@ export default function HistoryModal({ visible, onClose, logs }) {
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.modalBox}>
-          <Text style={styles.title}>Pomodoro History</Text>
+          <Text style={styles.title}>Timer History</Text>
 
           {logs && logs.length > 0 ? (
             <FlatList
@@ -116,7 +116,7 @@ export default function HistoryModal({ visible, onClose, logs }) {
               }}
             />
           ) : (
-            <Text style={{ marginTop: 20, fontSize: 16 }}>No history yet.</Text>
+            <Text style={{ marginTop: 20, fontSize: 16 }}>No history yet</Text>
           )}
 
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
