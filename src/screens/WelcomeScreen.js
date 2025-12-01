@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList,  TouchableWithoutFeedback, ScrollView, Alert, Modal } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, TouchableWithoutFeedback, ScrollView, Modal } from "react-native";
 import { CalendarList } from "react-native-calendars";
 import { useFocusEffect } from "@react-navigation/native";
 import CheckBox from "react-native-check-box";
@@ -32,34 +32,6 @@ export default function WelcomeScreen() {
   const randomColor = () => {
     return colors[Math.floor(Math.random() * 7)];
   }
-
-  const fetchCanadianHolidays = async () => {
-    try {
-      const currentYear = new Date().getFullYear();
-      const url = `https://canada-holidays.ca/api/v1/holidays?year=${currentYear}`;
-
-      const response = await fetch(url);
-      const json = await response.json();
-
-      if (!json.holidays) {
-        return;
-      }
-
-      const holidayDots = {};
-      json.holidays.forEach((h) => {
-        holidayDots[h.date] = {
-          dots: [{ color: "red" }],
-          marked: true,
-          holidayName: h.nameEn
-        };
-      });
-
-      setHolidays(json.holidays);
-      setDots((prev) => ({ ...prev, ...holidayDots }));
-    } catch (error) {
-    }
-  };
-
 
   const onCheck = async (folderName, todoName) => {
     const updated = events.map((item) => {
@@ -211,27 +183,39 @@ export default function WelcomeScreen() {
         }
 
         try {
-          const year = new Date().getFullYear();
-          const response = await fetch(
-            `https://date.nager.at/api/v3/PublicHolidays/${year}/CA`
-          );
-          const holidayData = await response.json();
+          const years = [
+            new Date().getFullYear(),
+            new Date().getFullYear() + 1,
+            new Date().getFullYear() + 2
+          ];
 
-          setHolidays(holidayData);
+          let allHolidays = [];
 
-          holidayData.forEach((h) => {
+          for (let y of years) {
+            const response = await fetch(
+              `https://date.nager.at/api/v3/PublicHolidays/${y}/CA`
+            );
+            const data = await response.json();
+            allHolidays = [...allHolidays, ...data];
+          }
+
+          setHolidays(allHolidays);
+
+          allHolidays.forEach((h) => {
             const date = h.date;
+
             if (!newDots[date]) newDots[date] = { dots: [] };
 
             newDots[date].dots.push({
-              key: `holiday-${h.name}`,
+              key: `holiday-${h.name}-${date}`,
               color: "#ff4444",
             });
           });
+
         } catch (err) {
           console.log("Holiday API error:", err);
         }
-
+        
         setDots(newDots);
       })();
     }, [])
@@ -241,7 +225,6 @@ export default function WelcomeScreen() {
   useEffect(() => {
     (async () => {
       await loadUserData();
-      await fetchCanadianHolidays();
       filterEvents(events);
     })();
   }, []);
