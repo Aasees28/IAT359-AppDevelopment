@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { SafeAreaView, View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, TouchableWithoutFeedback, Keyboard, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, TouchableWithoutFeedback, Keyboard, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Feather from '@expo/vector-icons/Feather';
-import Header from '../components/Header';
 import { getItem } from '../utils/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import HistoryModal from "../screens/HistoryModal";
+import Header from "../components/Header"; 
+import EditTimerModal from "../screens/EditTimerModal";
+import { Animated, Easing } from 'react-native'
 
+const CIRCLE_SIZE = 280
+const LINE_LENGTH = CIRCLE_SIZE / 2 - 12
 
 export default function TimerScreen() {
   const [focusHours, setFocusHours] = useState('0');
@@ -22,7 +26,12 @@ export default function TimerScreen() {
   const [historyVisible, setHistoryVisible] = useState(false);
   const [logs, setLogs] = useState([]);
   const [dailyTotal, setDailyTotal] = useState(0);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current
 
+  const [focusSeconds, setFocusSeconds] = useState("0");
+  const [restHours, setRestHours] = useState("0");
+  const [restSeconds, setRestSeconds] = useState("0");
 
   const intervalRef = useRef(null);
   const flatListRef = useRef(null);
@@ -234,6 +243,41 @@ export default function TimerScreen() {
     }
   }, [secondsLeft, session, isRunning, isPaused]);
 
+const getTotalSeconds = () => {
+  if (session === 'focus') {
+    return (
+      parseInt(focusHours || 0) * 3600 +
+      parseInt(focusMinutes || 0) * 60 +
+      parseInt(focusSeconds || 0)
+    )
+  }
+
+  if (session === 'rest') {
+    return (
+      parseInt(restHours || 0) * 3600 +
+      parseInt(restMinutes || 0) * 60 +
+      parseInt(restSeconds || 0)
+    )
+  }
+
+  return 1
+}
+
+useEffect(() => {
+  const total = getTotalSeconds()
+  if (!total) return
+
+  const progress = 1 - secondsLeft / total
+
+  Animated.timing(rotation, {
+    toValue: progress,
+    duration: 250,
+    useNativeDriver: true,
+  }).start()
+
+}, [secondsLeft, session])
+
+
 
   const alertResetFolder = (newFolder) => {
     Alert.alert(
@@ -271,8 +315,16 @@ export default function TimerScreen() {
     );
   };
 
+const spin = rotation.interpolate({
+  inputRange: [0, 1],
+  outputRange: ['0deg', '360deg'],
+})
+
+
 return (
-  <SafeAreaView style={styles.container}>
+  <View style={styles.container}>
+    <Header title="Timer" />
+
     <View
       style={[
         styles.outerContainer,
@@ -281,13 +333,13 @@ return (
         isPaused && styles.outerPaused,
       ]}
     >
+
       <View style={styles.frame}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.inner}>
-            <Text style={styles.title}>Timer</Text>
             <GoalProgressBar total={dailyTotal} goal={80} />
               <View style={[styles.sectionFrame, styles.folderBox]}>
-                <Text style={styles.mainTitle}>Folders</Text>
+                <Text style={styles.mainTitle}>Folder Selection</Text>
 
                 {folders.length > 0 ? (
                   <View style={styles.folderSelectorWrapper}>
@@ -369,134 +421,95 @@ return (
                 )}
               </View>
 
-
             {/* Timer Box */}
-            <View
-              style={[
-                styles.timerBox,
-                session === 'focus' && styles.shadowFocus,
-                session === 'rest' && styles.shadowRest,
-                session === 'idle' && styles.shadowIdle,
-                isPaused && styles.shadowPaused,
-              ]}
-            >
-              <Text style={styles.sessionLabel}>
-                {session === 'idle'
-                  ? 'Idle'
-                  : session === 'focus'
-                  ? 'Focus'
-                  : 'Rest'}
-              </Text>
+            <View style={styles.circleContainer}>
 
-              <Text style={styles.timeText}>
-                {formatTime(Math.max(0, secondsLeft))}
-              </Text>
+              <Animated.View
+                style={[
+                  styles.spinnerWrapper,
+                  {
+                    transform: [{
+                      rotate: rotation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0deg', '360deg']
+                      })
+                    }]
+                  }
+                ]}
+              >
+                <View style={styles.spinnerLine} />
+              </Animated.View>
 
-              <Text style={styles.folderTag}>
-                {selectedFolder ? selectedFolder.name : 'Select Folder'}
-              </Text>
+              <View
+                style={[
+                  styles.timerBox,
+                  session === 'focus' && styles.shadowFocus,
+                  session === 'rest' && styles.shadowRest,
+                  session === 'idle' && styles.shadowIdle,
+                  isPaused && styles.shadowPaused,
+                ]}
+              >
+                <Text style={styles.sessionLabel}>
+                  {session === 'idle'
+                    ? 'Idle'
+                    : session === 'focus'
+                    ? 'Focus'
+                    : 'Rest'}
+                </Text>
+
+                <Text style={styles.timeText}>
+                  {formatTime(Math.max(0, secondsLeft))}
+                </Text>
+
+                <Text style={styles.folderTag}>
+                  {selectedFolder ? selectedFolder.name : 'Select Folder'}
+                </Text>
+              </View>
+
             </View>
 
-
-            {/* Buttons */}
             <View style={styles.buttonsRow}>
-              <TouchableOpacity
-                style={[styles.button, styles.startButton]}
-                onPress={handleStart}
-              >
-                <Text style={styles.buttonText}>Start</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.iconButton, styles.editButton]}
+              onPress={() => setEditModalVisible(true)}
+            >
+              <Feather name="edit-2" size={26} color="#fff" />
+            </TouchableOpacity>
+
 
               <TouchableOpacity
                 style={[
-                  styles.button,
-                  isPaused ? styles.resumeButton : styles.pauseButton,
+                  styles.iconButton,
+                  isRunning && !isPaused
+                    ? styles.pauseButton
+                    : styles.startButton
                 ]}
                 onPress={() => {
-                  if (isPaused) {
+                  if (isRunning && !isPaused) {
+                    handlePause();
+                  } else if (isPaused) {
                     handleResume();
                   } else {
-                    handlePause();
+                    handleStart();
                   }
                 }}
               >
-                <Text style={styles.buttonText}>
-                  {isPaused ? 'Resume' : 'Pause'}
-                </Text>
+                <Feather
+                  name={isRunning && !isPaused ? "pause" : "play"}
+                  size={28}
+                  color="#fff"
+                />
               </TouchableOpacity>
 
+              {/* SKIP BUTTON */}
               <TouchableOpacity
-                style={[styles.button, styles.skipButton]}
+                style={[styles.iconButton, styles.skipButton]}
                 onPress={handleSkip}
               >
-                <Text style={styles.buttonText}>Skip</Text>
+                <Feather name="skip-forward" size={28} color="#fff" />
               </TouchableOpacity>
+
             </View>
-
-
-            {/* Time Inputs */}
-            <View style={styles.timeSetupContainer}>
-              {/* Focus Section */}
-              <View
-                style={[
-                  styles.sectionContainer,
-                  styles.sectionFrame,
-                  session === 'focus' && styles.activeFocusBox,
-                  isPaused && styles.pausedBox,
-                ]}
-              >
-                <Text style={styles.mainTitle}>Focus</Text>
-                <View style={styles.subInputsRow}>
-                  <View style={styles.inputGroupQuarter}>
-                    <Text style={styles.subLabel}>Hours</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={focusHours}
-                      onChangeText={(t) => setFocusHours(t.replace(/[^0-9]/g, ''))}
-                      keyboardType="numeric"
-                      placeholder="0"
-                    />
-                  </View>
-
-                  <View style={styles.inputGroupQuarter}>
-                    <Text style={styles.subLabel}>Minutes</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={focusMinutes}
-                      onChangeText={(t) => setFocusMinutes(t.replace(/[^0-9]/g, ''))}
-                      keyboardType="numeric"
-                      placeholder="25"
-                    />
-                  </View>
-                </View>
-              </View>
-
-              {/* Rest Section */}
-              <View
-                style={[
-                  styles.sectionContainer,
-                  styles.sectionFrame,
-                  session === 'rest' && styles.activeRestBox,
-                  isPaused && styles.pausedBox,
-
-                ]}
-              >
-                <Text style={styles.mainTitle}>Rest</Text>
-                <View style={styles.subInputsRow}>
-                  <View style={styles.inputGroupHalf}>
-                    <Text style={styles.subLabel}>Minutes</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={restMinutes}
-                      onChangeText={(t) => setRestMinutes(t.replace(/[^0-9]/g, ''))}
-                      keyboardType="numeric"
-                      placeholder="5"
-                    />
-                  </View>
-                </View>
-              </View>
-            </View>
-
             {/* History Button */}
             <TouchableOpacity 
               onPress={() => setHistoryVisible(true)} 
@@ -508,13 +521,40 @@ return (
         </TouchableWithoutFeedback>
       </View>
       </View>
-
       <HistoryModal
         visible={historyVisible}
         onClose={() => setHistoryVisible(false)}
         logs={logs}
       />
-    </SafeAreaView>
+
+      <EditTimerModal
+        visible={editModalVisible}
+        onClose={() => setEditModalVisible(false)}
+        onSave={(focus, rest) => {
+          // focus = {h, m, s}
+          // rest = {h, m, s}
+
+          setFocusHours(String(focus.h))
+          setFocusMinutes(String(focus.m))
+          setFocusSeconds(String(focus.s))
+
+          setRestHours(String(rest.h))
+          setRestMinutes(String(rest.m))
+          setRestSeconds(String(rest.s))
+        }}
+        focusTime={{
+          h: focusHours,
+          m: focusMinutes,
+          s: focusSeconds,
+        }}
+        restTime={{
+          h: restHours,
+          m: restMinutes,
+          s: restSeconds,
+        }}
+      />
+
+    </View>
   );
 }
 
@@ -544,8 +584,6 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '92%',
     margin: 15,
-    borderWidth: 1,
-    borderColor: '#666',
     borderRadius: 8,
     backgroundColor: '#f1f1f1ff',
     padding: 5,
@@ -557,34 +595,35 @@ const styles = StyleSheet.create({
 
   inner: {
     flex: 1,
+    marginTop: 8,
     paddingHorizontal: 20,
     paddingTop: 35,
     paddingBottom: 80,
     justifyContent: 'space-between',
-    
   },
 
   // ---- Title ----
   title: {
     fontSize: 45,
     fontWeight: '700',
-    borderWidth: 1,
     padding: 8,
     textAlign: 'center',
     marginBottom: 20,
     borderRadius: 12,
     color: '#000',
-    backgroundColor: '#fff'
+    backgroundColor: '#f0f0f0ff'
   },
 
   // ---- Folder Selector ----
   folderBox: {
-    backgroundColor: '#fff',
+    backgroundColor: '#e9e9e9ff',
+    borderWeight:1,
+    borderColor: '#9c9c9cff',
     marginBottom: 10,
-    marginTop: 6,
-    paddingVertical: 12,
+    paddingVertical: 7,
     paddingHorizontal: 10,
     alignItems: 'center',
+    paddingTop: 13,
   },
 
   folderSelectorWrapper: {
@@ -609,7 +648,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderColor: '#000',
+    borderColor: '#bbbbbbff',
     marginHorizontal: 4,
   },
   folderButtonSelected: {
@@ -624,32 +663,20 @@ const styles = StyleSheet.create({
   },
   folderTag: {
     marginTop: 8,
-    fontSize: 14,
+    fontSize: 16,
     color: '#0b2b2f',
     fontStyle: 'italic',
   },
 
   // ---- Timer Box ----
-  timerBox: {
-    alignItems: 'center',
-    marginVertical: 10,
-    padding: 7,
-    marginBottom: 20,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 1)',
-    borderWidth: 1,
-    borderColor: '#666',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
+
   sessionLabel: {
-    fontSize: 16,
+    fontSize: 19,
     marginBottom: 2,
     fontWeight: '600',
   },
   timeText: {
-    fontSize: 50,
+    fontSize: 40,
     fontWeight: '800',
   },
 
@@ -678,26 +705,33 @@ const styles = StyleSheet.create({
 
   // ---- Buttons ----
   buttonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    marginBottom: 10, 
   },
-  button: {
-    flex: 1,
-    padding: 9,
-    marginHorizontal: 2,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
+
+  iconButton: {
+    marginHorizontal: 15,
+    padding: 16,
+    borderRadius: 50,
   },
-  startButton: { backgroundColor: '#27a327a1' },
-  pauseButton: { backgroundColor: '#d8be54ff' },
-  resumeButton: { backgroundColor: '#d952c0ff' },
-  skipButton: { backgroundColor: '#5c96bcff' },
-  buttonText: {
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '700',
+
+  startButton: {
+    backgroundColor: "#64b365ff",
+  },
+
+    editButton: {
+    backgroundColor: '#aeadadff',
+  },
+
+  pauseButton: {
+    backgroundColor: "#6caae7ff",
+  },
+
+  skipButton: {
+    backgroundColor: "#555",
   },
 
   // ---- Focus/Rest Sections ----
@@ -705,7 +739,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 30,
   },
   sectionContainer: {
     flex: 0.5,
@@ -713,7 +747,6 @@ const styles = StyleSheet.create({
   },
   sectionFrame: {
     backgroundColor: 'rgba(255,255,255,0.6)',
-    borderWidth: 1,
     borderColor: '#666',
     borderRadius: 12,
     paddingVertical: 12,
@@ -724,10 +757,14 @@ const styles = StyleSheet.create({
   activeFocusBox: {
     backgroundColor: '#e2ffcd',
     borderColor: '#8ecf63',
+    borderWidth: 1,
+    borderColor: '#9fba8dff',
   },
   activeRestBox: {
     backgroundColor: '#e2f6fd',
     borderColor: '#69b2cf',
+    borderWidth: 1,
+    borderColor: '#9abcc9ff',
   },
   pausedBox: {
     opacity: 0.7,
@@ -735,7 +772,7 @@ const styles = StyleSheet.create({
 
   // ---- Inputs ----
   mainTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#0b2b2f',
     marginBottom: 8,
@@ -775,12 +812,12 @@ const styles = StyleSheet.create({
   historyButton: {
     backgroundColor: '#fff',
     borderWidth: 1,
+    borderColor: '#a0a0a0ff',
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderColor: '#0b2b2f',
     alignSelf: 'center',
-    marginTop: -5,
+    marginTop: 15,
   },
 
   historyButtonText: {
@@ -795,7 +832,7 @@ const styles = StyleSheet.create({
   goalContainer: {
     width: "100%",
     marginTop: -20,
-    marginBottom: 10,
+    marginBottom: 20,
     alignItems: "center",
   },
 
@@ -808,16 +845,52 @@ const styles = StyleSheet.create({
   },
 
   goalBar: {
-    width: "80%",
-    height: 10,
+    width: "97%",
+    height: 15,
     backgroundColor: "#ddd",
-    borderRadius: 10,
+    borderRadius: 5,
     overflow: "hidden",
   },
 
   goalFill: {
     height: "100%",
     backgroundColor: "#69b2cf",
+  },
+
+  circleContainer: {
+    width: CIRCLE_SIZE + 25,
+    height: CIRCLE_SIZE +10,
+    borderRadius: CIRCLE_SIZE / 2,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+
+  timerBox: {
+    width: CIRCLE_SIZE - 30,
+    height: CIRCLE_SIZE - 30,
+    borderRadius: (CIRCLE_SIZE - 30) / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+
+  spinnerWrapper: {
+    position: 'absolute',
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  spinnerLine: {
+    position: 'absolute',
+    width: 10,
+    height: LINE_LENGTH + 20 ,
+    backgroundColor: '#2c2121ff',
+    borderRadius: 10,
+
+    transform: [{ translateY: -LINE_LENGTH / 2 }],
   },
 
 });
