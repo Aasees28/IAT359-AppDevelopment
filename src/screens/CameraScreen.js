@@ -171,7 +171,7 @@ export default function CameraScreen({ route, navigation }) {
                     facing={facing}
                     mode={mode}
                     responsiveOrientationWhenOrientationLocked
-                    zoom={0.15}
+                    zoom={0.1}
                 />
                 { mode === 'video' && (
                     <View style={styles.timerContainer}>

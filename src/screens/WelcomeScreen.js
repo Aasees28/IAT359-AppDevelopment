@@ -253,101 +253,101 @@ export default function WelcomeScreen() {
   return (
     <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
       <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Welcome {userName ? userName : ""},</Text>
-          <View style={{ position: 'relative' }}>
-            <TouchableOpacity onPress={() => setMenuVisible(!menuVisible)}>
-              <Feather name="user" size={28} color="black" />
-            </TouchableOpacity>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Welcome {userName ? userName : ""},</Text>
+            <View style={{ position: 'relative' }}>
+              <TouchableOpacity onPress={() => setMenuVisible(!menuVisible)}>
+                <Feather name="user" size={28} color="black" />
+              </TouchableOpacity>
 
-            {menuVisible && (
-              <View style={styles.dropdown}>
-                <TouchableOpacity
-                    onPress={signout}
-                >
-                  <Text style={styles.dropdownText}>Sign Out</Text>
+              {menuVisible && (
+                <View style={styles.dropdown}>
+                  <TouchableOpacity
+                      onPress={signout}
+                  >
+                    <Text style={styles.dropdownText}>Sign Out</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+        </View>
+
+        {/* expanded daily todo modal */}
+        <Modal
+          transparent={true}
+          visible={expanded}
+          onRequestClose={() => {
+              setExpanded(!expanded);
+          }}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.todoContainer}>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity onPress={() => setExpanded(false)}>
+                  <Feather name="x" size={26} color="black" />
                 </TouchableOpacity>
               </View>
-            )}
-          </View>
-      </View>
 
-      {/* expanded daily todo modal */}
-      <Modal
-        transparent={true}
-        visible={expanded}
-        onRequestClose={() => {
-            setExpanded(!expanded);
-        }}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.todoContainer}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setExpanded(false)}>
-                <Feather name="x" size={26} color="black" />
-              </TouchableOpacity>
-            </View>
+              <View style={styles.todoHeader}>
+                <TouchableOpacity onPress={prevDate}>
+                  <Feather name="chevron-left" size={26} color="black" />
+                </TouchableOpacity>
+                <Text style={styles.selectedDate}>{formatDateForModal(selectedDate)}</Text>
+                <TouchableOpacity onPress={nextDate}>
+                  <Feather name="chevron-right" size={26} color="black" />
+                </TouchableOpacity>
+              </View>
 
-            <View style={styles.todoHeader}>
-              <TouchableOpacity onPress={prevDate}>
-                <Feather name="chevron-left" size={26} color="black" />
-              </TouchableOpacity>
-              <Text style={styles.selectedDate}>{formatDateForModal(selectedDate)}</Text>
-              <TouchableOpacity onPress={nextDate}>
-                <Feather name="chevron-right" size={26} color="black" />
-              </TouchableOpacity>
-            </View>
+              <ScrollView>
+                <HolidayBlock />
 
-            <ScrollView>
-              <HolidayBlock />
-
-              {filteredEvents.map((item, i) => {
-                return item.todos.length > 0 ? (
-                  <View key={i} style={styles.todoItemContainer}>
-                    <View style={styles.todoItemHeader}>
-                      <Text style={[styles.todoHeaderTitle, { backgroundColor: "#fff6c2"}]}>{item.name}</Text>
+                {filteredEvents.map((item, i) => {
+                  return item.todos.length > 0 ? (
+                    <View key={i} style={styles.todoItemContainer}>
+                      <View style={styles.todoItemHeader}>
+                        <Text style={[styles.todoHeaderTitle, { backgroundColor: "#fff6c2"}]}>{item.name}</Text>
+                      </View>
+                      <View style={styles.todos}>
+                        {item.todos.map((todo, i) => (
+                          <View style={styles.todoItem} key={i}>
+                            <CheckBox
+                              isChecked={todo.checked}
+                              onClick={() => onCheck(item.name, todo.name)}
+                              checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
+                              unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
+                            />
+                            <Text>{todo.name}</Text>
+                          </View>
+                        ))}
+                      </View>
                     </View>
-                    <View style={styles.todos}>
-                      {item.todos.map((todo, i) => (
-                        <View style={styles.todoItem} key={i}>
-                          <CheckBox
-                            isChecked={todo.checked}
-                            onClick={() => onCheck(item.name, todo.name)}
-                            checkedImage={<MaterialIcons name="check-box" size={28} color="black" />}
-                            unCheckedImage={<MaterialIcons name="check-box-outline-blank" size={28} color="black" />}
-                          />
-                          <Text>{todo.name}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                ) : (
-                  <View key={i}></View>
-                )
-              })}
-            </ScrollView>
+                  ) : (
+                    <View key={i}></View>
+                  )
+                })}
+              </ScrollView>
+            </View>
           </View>
+        </Modal>
+
+        <View style={styles.body}>
+          <CalendarList 
+            theme={theme}
+            horizontal
+            staticHeader
+            pagingEnabled
+            pastScrollRange={12}
+            futureScrollRange={12}
+            markingType={'multi-dot'}
+            markedDates={dots}
+            onDayPress={onSelectDate}
+            hideArrows
+          />
         </View>
-      </Modal>
-
-      <View style={styles.body}>
-        <CalendarList 
-          theme={theme}
-          horizontal
-          staticHeader
-          pagingEnabled
-          pastScrollRange={12}
-          futureScrollRange={12}
-          markingType={'multi-dot'}
-          markedDates={dots}
-          onDayPress={onSelectDate}
-          hideArrows
-        />
       </View>
-    </View>
-  </TouchableWithoutFeedback>
-);
+    </TouchableWithoutFeedback>
+  );
 }
 
 const theme = {

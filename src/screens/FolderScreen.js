@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Keyboard, Modal, TextInput, Button, TouchableWithoutFeedback, Alert, Platform } from "react-native";
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import CheckBox from "react-native-check-box";
@@ -355,7 +356,10 @@ export default function FolderScreen({ navigation, route }) {
                                 />
                                 <TouchableOpacity style={styles.todoContent} onLongPress={() => deleteTodo(todo)}>
                                     <Text style={styles.todoName}>{todo.name}</Text>
-                                    <Text style={styles.todoDate}>{todo.date}</Text>
+                                    <View style={styles.todoDate}>
+                                        <MaterialCommunityIcons name="calendar-alert-outline" size={13} color="#666" />
+                                        <Text style={styles.todoDateText}>{todo.date}</Text>
+                                    </View>
                                 </TouchableOpacity>
                             </View>)}
                         )}
@@ -376,7 +380,10 @@ export default function FolderScreen({ navigation, route }) {
                                 />
                                 <View style={styles.todoContent}>
                                     <Text style={styles.todoName}>{todo.name}</Text>
-                                    <Text style={styles.todoDate}>{todo.date}</Text>
+                                    <View style={styles.todoDate}>
+                                        <MaterialCommunityIcons name="calendar-alert-outline" size={13} color="#666" />
+                                        <Text style={styles.todoDateText}>{todo.date}</Text>
+                                    </View>
                                 </View>
                             </View>)}
                         )}
@@ -680,8 +687,13 @@ export const styles = StyleSheet.create({
         fontWeight: 600,
     },
     todoDate: {
+        alignItems: 'center',
+        flexDirection: 'row',
+    },
+    todoDateText: {
         color: '#666', 
         fontSize: 12,
+        marginLeft: 2,
     },
     datePicker: {
         marginTop: 5,

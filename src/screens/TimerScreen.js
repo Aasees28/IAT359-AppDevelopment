@@ -243,40 +243,39 @@ export default function TimerScreen() {
     }
   }, [secondsLeft, session, isRunning, isPaused]);
 
-const getTotalSeconds = () => {
-  if (session === 'focus') {
-    return (
-      parseInt(focusHours || 0) * 3600 +
-      parseInt(focusMinutes || 0) * 60 +
-      parseInt(focusSeconds || 0)
-    )
+  const getTotalSeconds = () => {
+    if (session === 'focus') {
+      return (
+        parseInt(focusHours || 0) * 3600 +
+        parseInt(focusMinutes || 0) * 60 +
+        parseInt(focusSeconds || 0)
+      )
+    }
+
+    if (session === 'rest') {
+      return (
+        parseInt(restHours || 0) * 3600 +
+        parseInt(restMinutes || 0) * 60 +
+        parseInt(restSeconds || 0)
+      )
+    }
+
+    return 1
   }
 
-  if (session === 'rest') {
-    return (
-      parseInt(restHours || 0) * 3600 +
-      parseInt(restMinutes || 0) * 60 +
-      parseInt(restSeconds || 0)
-    )
-  }
+  useEffect(() => {
+    const total = getTotalSeconds()
+    if (!total) return
 
-  return 1
-}
+    const progress = 1 - secondsLeft / total
 
-useEffect(() => {
-  const total = getTotalSeconds()
-  if (!total) return
+    Animated.timing(rotation, {
+      toValue: progress,
+      duration: 250,
+      useNativeDriver: true,
+    }).start()
 
-  const progress = 1 - secondsLeft / total
-
-  Animated.timing(rotation, {
-    toValue: progress,
-    duration: 250,
-    useNativeDriver: true,
-  }).start()
-
-}, [secondsLeft, session])
-
+  }, [secondsLeft, session])
 
 
   const alertResetFolder = (newFolder) => {
@@ -315,212 +314,211 @@ useEffect(() => {
     );
   };
 
-const spin = rotation.interpolate({
-  inputRange: [0, 1],
-  outputRange: ['0deg', '360deg'],
-})
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  })
 
+  return (
+    <View style={styles.container}>
+      <Header title="Timer" />
 
-return (
-  <View style={styles.container}>
-    <Header title="Timer" />
+      <View
+        style={[
+          styles.outerContainer,
+          session === 'focus' && styles.outerFocus,
+          session === 'rest' && styles.outerRest,
+          isPaused && styles.outerPaused,
+        ]}
+      >
 
-    <View
-      style={[
-        styles.outerContainer,
-        session === 'focus' && styles.outerFocus,
-        session === 'rest' && styles.outerRest,
-        isPaused && styles.outerPaused,
-      ]}
-    >
+        <View style={styles.frame}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.inner}>
+              <GoalProgressBar total={dailyTotal} goal={80} />
+                <View style={[styles.sectionFrame, styles.folderBox]}>
+                  <Text style={styles.mainTitle}>Folder Selection</Text>
 
-      <View style={styles.frame}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={styles.inner}>
-            <GoalProgressBar total={dailyTotal} goal={80} />
-              <View style={[styles.sectionFrame, styles.folderBox]}>
-                <Text style={styles.mainTitle}>Folder Selection</Text>
+                  {folders.length > 0 ? (
+                    <View style={styles.folderSelectorWrapper}>
+                      {/* Left Arrow */}
+                      <TouchableOpacity
+                        style={styles.arrowButton}
+                        onPress={() => {
+                          flatListRef.current?.scrollToOffset({
+                            offset: Math.max(currentOffset - 120, 0),
+                            animated: true,
+                          });
+                          setCurrentOffset(Math.max(currentOffset - 120, 0));
+                        }}
+                      >
+                        <Feather name="chevron-left" size={20} color="#0b2b2f" />
+                      </TouchableOpacity>
 
-                {folders.length > 0 ? (
-                  <View style={styles.folderSelectorWrapper}>
-                    {/* Left Arrow */}
-                    <TouchableOpacity
-                      style={styles.arrowButton}
-                      onPress={() => {
-                        flatListRef.current?.scrollToOffset({
-                          offset: Math.max(currentOffset - 120, 0),
-                          animated: true,
-                        });
-                        setCurrentOffset(Math.max(currentOffset - 120, 0));
-                      }}
-                    >
-                      <Feather name="chevron-left" size={20} color="#0b2b2f" />
-                    </TouchableOpacity>
-
-                    {/* Scrollable Folder List */}
-                    <View style={styles.folderSelector}>
-                      <FlatList
-                        ref={flatListRef}
-                        data={folders}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        keyExtractor={(item, index) => `${item.name}-${index}`}
-                        onScroll={(e) =>
-                          setCurrentOffset(e.nativeEvent.contentOffset.x)
-                        }
-                        scrollEventThrottle={16}
-                        renderItem={({ item }) => (
-                          <TouchableOpacity
-                            style={[
-                              styles.folderButton,
-                              selectedFolder?.name === item.name &&
-                                styles.folderButtonSelected,
-                            ]}
-                            onPress={() => {
-                              if (isRunning || isPaused) {
-                                alertResetFolder(item);
-                              } else {
-                                if (selectedFolder?.name === item.name) {
-                                  setSelectedFolder(null); 
-                                } else {
-                                  setSelectedFolder(item);
-                                }
-                              }
-                            }}
-                          >
-                            <Text
+                      {/* Scrollable Folder List */}
+                      <View style={styles.folderSelector}>
+                        <FlatList
+                          ref={flatListRef}
+                          data={folders}
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          keyExtractor={(item, index) => `${item.name}-${index}`}
+                          onScroll={(e) =>
+                            setCurrentOffset(e.nativeEvent.contentOffset.x)
+                          }
+                          scrollEventThrottle={16}
+                          renderItem={({ item }) => (
+                            <TouchableOpacity
                               style={[
-                                styles.folderText,
+                                styles.folderButton,
                                 selectedFolder?.name === item.name &&
-                                  styles.folderTextSelected,
+                                  styles.folderButtonSelected,
                               ]}
+                              onPress={() => {
+                                if (isRunning || isPaused) {
+                                  alertResetFolder(item);
+                                } else {
+                                  if (selectedFolder?.name === item.name) {
+                                    setSelectedFolder(null); 
+                                  } else {
+                                    setSelectedFolder(item);
+                                  }
+                                }
+                              }}
                             >
-                              {item.name}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      />
+                              <Text
+                                style={[
+                                  styles.folderText,
+                                  selectedFolder?.name === item.name &&
+                                    styles.folderTextSelected,
+                                ]}
+                              >
+                                {item.name}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        />
+                      </View>
+
+                      {/* Right Arrow */}
+                      <TouchableOpacity
+                        style={styles.arrowButton}
+                        onPress={() => {
+                          flatListRef.current?.scrollToOffset({
+                            offset: currentOffset + 120,
+                            animated: true,
+                          });
+                          setCurrentOffset(currentOffset + 120);
+                        }}
+                      >
+                        <Feather name="chevron-right" size={20} color="#0b2b2f" />
+                      </TouchableOpacity>
                     </View>
+                  ) : (
+                    <Text style={styles.emptyFolderText}>No folders yet</Text>
+                  )}
+                </View>
 
-                    {/* Right Arrow */}
-                    <TouchableOpacity
-                      style={styles.arrowButton}
-                      onPress={() => {
-                        flatListRef.current?.scrollToOffset({
-                          offset: currentOffset + 120,
-                          animated: true,
-                        });
-                        setCurrentOffset(currentOffset + 120);
-                      }}
-                    >
-                      <Feather name="chevron-right" size={20} color="#0b2b2f" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <Text style={styles.emptyFolderText}>No folders yet</Text>
-                )}
+              {/* Timer Box */}
+              <View style={styles.circleContainer}>
+
+                <Animated.View
+                  style={[
+                    styles.spinnerWrapper,
+                    {
+                      transform: [{
+                        rotate: rotation.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '360deg']
+                        })
+                      }]
+                    }
+                  ]}
+                >
+                  <View style={styles.spinnerLine} />
+                </Animated.View>
+
+                <View
+                  style={[
+                    styles.timerBox,
+                    session === 'focus' && styles.shadowFocus,
+                    session === 'rest' && styles.shadowRest,
+                    session === 'idle' && styles.shadowIdle,
+                    isPaused && styles.shadowPaused,
+                  ]}
+                >
+                  <Text style={styles.sessionLabel}>
+                    {session === 'idle'
+                      ? 'Idle'
+                      : session === 'focus'
+                      ? 'Focus'
+                      : 'Rest'}
+                  </Text>
+
+                  <Text style={styles.timeText}>
+                    {formatTime(Math.max(0, secondsLeft))}
+                  </Text>
+
+                  <Text style={styles.folderTag}>
+                    {selectedFolder ? selectedFolder.name : 'Select Folder'}
+                  </Text>
+                </View>
+
               </View>
 
-            {/* Timer Box */}
-            <View style={styles.circleContainer}>
+              <View style={styles.buttonsRow}>
+                <TouchableOpacity
+                  style={[styles.iconButton, styles.editButton]}
+                  onPress={() => setEditModalVisible(true)}
+                >
+                  <Feather name="edit-2" size={26} color="#fff" />
+                </TouchableOpacity>
 
-              <Animated.View
-                style={[
-                  styles.spinnerWrapper,
-                  {
-                    transform: [{
-                      rotate: rotation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '360deg']
-                      })
-                    }]
-                  }
-                ]}
-              >
-                <View style={styles.spinnerLine} />
-              </Animated.View>
+                <TouchableOpacity
+                  style={[
+                    styles.iconButton,
+                    isRunning && !isPaused
+                      ? styles.pauseButton
+                      : styles.startButton
+                  ]}
+                  onPress={() => {
+                    if (isRunning && !isPaused) {
+                      handlePause();
+                    } else if (isPaused) {
+                      handleResume();
+                    } else {
+                      handleStart();
+                    }
+                  }}
+                >
+                  <Feather
+                    name={isRunning && !isPaused ? "pause" : "play"}
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
 
-              <View
-                style={[
-                  styles.timerBox,
-                  session === 'focus' && styles.shadowFocus,
-                  session === 'rest' && styles.shadowRest,
-                  session === 'idle' && styles.shadowIdle,
-                  isPaused && styles.shadowPaused,
-                ]}
-              >
-                <Text style={styles.sessionLabel}>
-                  {session === 'idle'
-                    ? 'Idle'
-                    : session === 'focus'
-                    ? 'Focus'
-                    : 'Rest'}
-                </Text>
+                {/* SKIP BUTTON */}
+                <TouchableOpacity
+                  style={[styles.iconButton, styles.skipButton]}
+                  onPress={handleSkip}
+                >
+                  <Feather name="skip-forward" size={28} color="#fff" />
+                </TouchableOpacity>
 
-                <Text style={styles.timeText}>
-                  {formatTime(Math.max(0, secondsLeft))}
-                </Text>
-
-                <Text style={styles.folderTag}>
-                  {selectedFolder ? selectedFolder.name : 'Select Folder'}
-                </Text>
               </View>
-
-            </View>
-
-            <View style={styles.buttonsRow}>
-            <TouchableOpacity
-              style={[styles.iconButton, styles.editButton]}
-              onPress={() => setEditModalVisible(true)}
-            >
-              <Feather name="edit-2" size={26} color="#fff" />
-            </TouchableOpacity>
-
-
-              <TouchableOpacity
-                style={[
-                  styles.iconButton,
-                  isRunning && !isPaused
-                    ? styles.pauseButton
-                    : styles.startButton
-                ]}
-                onPress={() => {
-                  if (isRunning && !isPaused) {
-                    handlePause();
-                  } else if (isPaused) {
-                    handleResume();
-                  } else {
-                    handleStart();
-                  }
-                }}
+              {/* History Button */}
+              <TouchableOpacity 
+                onPress={() => setHistoryVisible(true)} 
+                style={styles.historyButton}
               >
-                <Feather
-                  name={isRunning && !isPaused ? "pause" : "play"}
-                  size={28}
-                  color="#fff"
-                />
+                <Text style={styles.historyButtonText}>View History</Text>
               </TouchableOpacity>
-
-              {/* SKIP BUTTON */}
-              <TouchableOpacity
-                style={[styles.iconButton, styles.skipButton]}
-                onPress={handleSkip}
-              >
-                <Feather name="skip-forward" size={28} color="#fff" />
-              </TouchableOpacity>
-
             </View>
-            {/* History Button */}
-            <TouchableOpacity 
-              onPress={() => setHistoryVisible(true)} 
-              style={styles.historyButton}
-            >
-              <Text style={styles.historyButtonText}>View History</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableWithoutFeedback>
+          </TouchableWithoutFeedback>
+        </View>
       </View>
-      </View>
+
       <HistoryModal
         visible={historyVisible}
         onClose={() => setHistoryVisible(false)}

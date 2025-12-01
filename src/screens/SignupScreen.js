@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
 import { storeItem } from "../utils/storage";
 import { setDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "../Firebase/firebaseConfig"; 
@@ -16,84 +15,84 @@ export default function SignInScreen({ navigation }) {
   const [firstName, setFirstName] = useState(""); 
   const [lastName, setLastName] = useState("");
 
-const handleLogin = async () => {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user; // ✅ this line is required
+  const handleLogin = async () => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    if (userDoc.exists()) {
-      const { firstName } = userDoc.data();
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const { firstName } = userDoc.data();
+        await storeItem("userName", firstName);
+      }
+
+      console.log("Logged in & name loaded");
+    } catch (error) {
+      let message = "Something went wrong. Please try again.";
+
+      switch (error.code) {
+        case "auth/invalid-email":
+          message = "Please enter a valid email address.";
+          break;
+        case "auth/invalid-credential":
+          message = "Incorrect email or password. Please try again.";
+          break;
+        case "auth/missing-password":
+          message = "Type your Password.";
+          break;
+        default:
+          message = error.message;
+          break;
+      }
+
+      Alert.alert("Login Failed", message);
+    }
+  };
+
+  // after signup
+  const handleSignUp = async () => {
+    if (!email || !password || !firstName || !lastName) {
+      Alert.alert("Missing Fields", "Please fill all fields before signing up.");
+      return;
+    }
+
+    try {
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Save user info to Firestore
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        firstName: firstName,
+        email: email,
+        createdAt: new Date()
+      });
+
+      // Optionally also store locally (for offline use)
       await storeItem("userName", firstName);
+
+      console.log("Account created & name stored in Firestore");
+      setModalVisible(false);
+      navigation.navigate("Home");
+    } catch (error) {
+      let message = "";
+      switch (error.code) {
+        case "auth/invalid-email":
+          message = "Please enter a valid email address.";
+          break;
+        case "auth/email-already-in-use":
+          message = "This email is already registered. Try logging in instead.";
+          break;
+        case "auth/weak-password":
+          message = "Password is too weak. Use at least 6 characters.";
+          break;
+        default:
+          message = error.message;
+          break;
+      }
+      Alert.alert("Sign Up Error", message);
     }
-
-    console.log("✅ Logged in & name loaded");
-  } catch (error) {
-    let message = "Something went wrong. Please try again.";
-
-    switch (error.code) {
-      case "auth/invalid-email":
-        message = "Please enter a valid email address.";
-        break;
-      case "auth/invalid-credential":
-        message = "Incorrect email or password. Please try again.";
-        break;
-      case "auth/missing-password":
-        message = "Type your Password.";
-        break;
-      default:
-        message = error.message;
-        break;
-    }
-
-    Alert.alert("Login Failed", message);
-  }
-};
-
-// after signup
-const handleSignUp = async () => {
-  if (!email || !password || !firstName || !lastName) {
-    Alert.alert("Missing Fields", "Please fill all fields before signing up.");
-    return;
-  }
-
-  try {
-    // Create user in Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-
-    // Save user info to Firestore
-    await setDoc(doc(db, "users", userCredential.user.uid), {
-      firstName: firstName,
-      email: email,
-      createdAt: new Date()
-    });
-
-    // Optionally also store locally (for offline use)
-    await storeItem("userName", firstName);
-
-    console.log("✅ Account created & name stored in Firestore");
-    setModalVisible(false);
-    navigation.navigate("Home");
-  } catch (error) {
-    let message = "";
-    switch (error.code) {
-      case "auth/invalid-email":
-        message = "Please enter a valid email address.";
-        break;
-      case "auth/email-already-in-use":
-        message = "This email is already registered. Try logging in instead.";
-        break;
-      case "auth/weak-password":
-        message = "Password is too weak. Use at least 6 characters.";
-        break;
-      default:
-        message = error.message;
-        break;
-    }
-    Alert.alert("Sign Up Error", message);
-  }
-};
+  };
 
   return (
     <View style={styles.container}>
@@ -142,76 +141,75 @@ const handleSignUp = async () => {
         </TouchableOpacity>
       </View>
 
-{/* 🔹 SIGN UP MODAL */}
-<Modal
-  transparent={true}
-  visible={modalVisible}
-  animationType="fade"
-  onRequestClose={() => setModalVisible(false)}
->
-  <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-    <View style={styles.modalOverlay}>
-      <View style={styles.modalContainer}>
-        <Text style={styles.modalTitle}>Create Account</Text>
+      {/* Signup modal */}
+      <Modal
+        transparent={true}
+        visible={modalVisible}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Create Account</Text>
 
-        <View>
-          <Text style={styles.label}>First Name</Text>
-          <TextInput
-            style={styles.modalInput}
-            placeholder="name..."
-            value={firstName}
-            onChangeText={setFirstName}
-          />
+              <View>
+                <Text style={styles.label}>First Name</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="name..."
+                  value={firstName}
+                  onChangeText={setFirstName}
+                />
 
-          <Text style={styles.label}>Last Name</Text>
-          <TextInput
-            style={styles.modalInput}
-            placeholder="surname..."
-            value={lastName}
-            onChangeText={setLastName}
-          />
+                <Text style={styles.label}>Last Name</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="surname..."
+                  value={lastName}
+                  onChangeText={setLastName}
+                />
 
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.modalInput}
-            placeholder="enter email address..."
-            placeholderTextColor="#aaa"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-          />
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="enter email address..."
+                  placeholderTextColor="#aaa"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                />
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.modalInput}
-            placeholder="enter password..."
-            placeholderTextColor="#aaa"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-        </View>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="enter password..."
+                  placeholderTextColor="#aaa"
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                />
+              </View>
 
-        <View style={styles.modalButtonContainer}>
-          <TouchableOpacity
-            style={styles.modalCreateButton}
-            onPress={handleSignUp}
-          >
-            <Text style={styles.modalButtonText}>Continue</Text>
-          </TouchableOpacity>
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity
+                  style={styles.modalCreateButton}
+                  onPress={handleSignUp}
+                >
+                  <Text style={styles.modalButtonText}>Continue</Text>
+                </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.modalBackButton}
-            onPress={() => setModalVisible(false)}
-          >
-            <Text style={styles.modalBackText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  </TouchableWithoutFeedback>
-</Modal>
-
+                <TouchableOpacity
+                  style={styles.modalBackButton}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.modalBackText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
