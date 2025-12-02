@@ -2,6 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { View, StyleSheet, Text, Touchable, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
+// Global Header component
 export default function Header({ isBackOnly = false, title }) {
     const navigation = useNavigation();
     return (

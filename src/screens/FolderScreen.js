@@ -290,6 +290,8 @@ export default function FolderScreen({ navigation, route }) {
                     <Feather name="more-vertical" size={24} color="black" />
                 </TouchableOpacity>
             </View>
+
+            {/* Media section */}
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                     <Text style={styles.title}>📖 Lecture note / photo</Text>
@@ -332,6 +334,8 @@ export default function FolderScreen({ navigation, route }) {
 
                 </View>
             </View>
+
+            {/* Todo section */}
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                     <Text style={styles.title}>✒️ Todo</Text>

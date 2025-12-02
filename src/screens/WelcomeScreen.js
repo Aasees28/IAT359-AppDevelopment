@@ -33,6 +33,7 @@ export default function WelcomeScreen() {
     return colors[Math.floor(Math.random() * 7)];
   }
 
+  // Tick off or untick todo
   const onCheck = async (folderName, todoName) => {
     const updated = events.map((item) => {
       if (item.name === folderName) {
@@ -62,6 +63,7 @@ export default function WelcomeScreen() {
 
   }
 
+  // when user selects a date on the calendar
   const onSelectDate = (date) => {
     const selected = date.dateString;
 
@@ -82,6 +84,7 @@ export default function WelcomeScreen() {
     setExpanded(true);
   };
 
+  // filter todo items on selected date
   const filterEvents = (e) => {
     const filtered = [];
     e.forEach((item) => {
@@ -96,6 +99,7 @@ export default function WelcomeScreen() {
     setFilteredEvents(filtered)
   }
 
+  // to dynamically generate formatted date
   const formatDateForModal = (date) => {
     const d = date.split('-')
     const selected = new Date(d[0], d[1]-1, d[2]);
@@ -105,6 +109,7 @@ export default function WelcomeScreen() {
     return `${days[selected.getDay()]} ${months[selected.getMonth()]} ${selected.getDate()}, ${selected.getFullYear()}`
   }
 
+  // when user clicks next date button
   const nextDate = () => {
     const selected = new Date(selectedDate);
     selected.setDate(selected.getDate() + 1);
@@ -112,6 +117,7 @@ export default function WelcomeScreen() {
     setSelectedDate(selected.toISOString().split('T')[0]);
   }
 
+  // when user clicks previous date button
   const prevDate = () => {
     const selected = new Date(selectedDate);
     selected.setDate(selected.getDate() - 1);
@@ -134,6 +140,7 @@ export default function WelcomeScreen() {
   
   useFocusEffect(
     useCallback(() => {
+      // load username from firestore and data from async storage
       (async () => {
         const user = auth.currentUser;
         if (user) {
@@ -182,6 +189,7 @@ export default function WelcomeScreen() {
           filterEvents(res);
         }
 
+        // fetch holidays from API
         try {
           const years = [
             new Date().getFullYear(),
@@ -234,6 +242,7 @@ export default function WelcomeScreen() {
     filterEvents(events);
   }, [selectedDate]);
 
+  // Holiday block component
   function HolidayBlock() {
     const holiday = holidays.filter(h => h.date === selectedDate);
     if (!holiday) return null;
@@ -407,7 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   header: {
-    paddingTop: 70, // 🔹 add this line to push everything down
+    paddingTop: 70, // add this line to push everything down
     paddingHorizontal: 20,
     flexDirection: "row",
     justifyContent: "space-between",
