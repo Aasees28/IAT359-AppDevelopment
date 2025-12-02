@@ -15,6 +15,7 @@ export default function SignInScreen({ navigation }) {
   const [firstName, setFirstName] = useState(""); 
   const [lastName, setLastName] = useState("");
 
+  // Handles user login
   const handleLogin = async () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -49,7 +50,7 @@ export default function SignInScreen({ navigation }) {
     }
   };
 
-  // after signup
+  // Handles user signup
   const handleSignUp = async () => {
     if (!email || !password || !firstName || !lastName) {
       Alert.alert("Missing Fields", "Please fill all fields before signing up.");

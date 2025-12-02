@@ -27,6 +27,7 @@ export default function HistoryModal({ visible, onClose, logs }) {
     return acc;
   }, {}) || {};
 
+  // toggles for dropdowns
   const toggleFolder = (folder) => {
     LayoutAnimation.easeInEaseOut();
     setOpenFolders((prev) => ({ ...prev, [folder]: !prev[folder] }));

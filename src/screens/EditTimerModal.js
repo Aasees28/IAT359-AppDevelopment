@@ -39,6 +39,7 @@ export default function EditTimerModal({
   const restMinutesRef = useRef();
   const restSecondsRef = useRef();
 
+  // Runs every time the modal becomes visible
   useEffect(() => {
     if (visible) {
       const fH = Number(focusTime?.h) || 0;
@@ -69,12 +70,14 @@ export default function EditTimerModal({
     }
   }, [visible]);
 
+  // Calculates which item is selected based on scroll position
   const handleScroll = (event, setter, dataLength) => {
     const y = event.nativeEvent.contentOffset.y;
     const index = Math.round(y / ITEM_HEIGHT);
     if (index >= 0 && index < dataLength) setter(index);
   };
 
+  // Renders one scrollable time column (hours/mins/secs)
   const renderColumn = (data, ref, value, setter) => (
     <ScrollView
       ref={ref}
@@ -113,15 +116,12 @@ export default function EditTimerModal({
       <View style={styles.overlay}>
         <View style={styles.modal}>
           
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Edit Timer</Text>
             <TouchableOpacity onPress={onClose}>
               <Feather name="x" size={22} />
             </TouchableOpacity>
           </View>
-
-          {/* ========== FOCUS ========== */}
           <Text style={styles.sectionTitle}>Focus</Text>
 
           <View style={styles.selectorFrame}>

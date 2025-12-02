@@ -1,7 +1,3 @@
-// FULL IMAGEGRIDSCREEN CODE
-// (Same as previous version — only formatting dates)
-// The REAL fix happens when saving images, not here.
-
 import React, { useEffect, useState } from "react";
 import {
     View,
@@ -29,6 +25,7 @@ export default function ImageGridScreen() {
     const [selected, setSelected] = useState(null);
     const [visible, setVisible] = useState(false);
 
+    // Runs every time `images` changes
     useEffect(() => {
         setList(images || []);
         console.log("Sample items:", images?.slice(0, 5));
@@ -36,6 +33,7 @@ export default function ImageGridScreen() {
         
     }, [images]);
 
+    // Renders a video thumbnail for grid view
     function VideoThumb({ uri }) {
         const player = useVideoPlayer(uri);
         return (
@@ -54,6 +52,7 @@ export default function ImageGridScreen() {
         );
     }
 
+    // Renders the selected video in full screen view
     function FullScreenVideo({ uri }) {
         const player = useVideoPlayer(uri);
         return (
@@ -66,11 +65,13 @@ export default function ImageGridScreen() {
         );
     }
 
+    // Opens image/video in the modal view
     const openItem = (item) => {
         setSelected(item);
         setVisible(true);
     };
 
+    // Deletes the currently selected item
     const deleteItem = async () => {
         Alert.alert("Delete", "Delete this item?", [
             { text: "Cancel", style: "cancel" },
@@ -98,10 +99,10 @@ export default function ImageGridScreen() {
         ]);
     };
 
+    // Formats different types of date inputs into readable text
     const formatDate = (input) => {
     if (!input) return "";
 
-    // CASE 1: input is "YYYY-MM-DD"
     const match = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (match) {
         const [_, y, m, d] = match;
@@ -112,8 +113,6 @@ export default function ImageGridScreen() {
         day: "numeric",
         });
     }
-
-    // CASE 2: input is ISO timestamp or epoch
     const parsed = Date.parse(input);
     if (!isNaN(parsed)) {
         const date = new Date(parsed);
