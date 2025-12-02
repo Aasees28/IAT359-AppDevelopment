@@ -92,6 +92,7 @@ export default function CameraScreen({ route, navigation }) {
         if (ref.current) {
             ref.current.stopRecording();
             setIsRecording(false);
+            setRecordTime(0);
         }
     };
 
