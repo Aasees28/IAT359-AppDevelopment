@@ -17,6 +17,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getItem, storeItem } from "../utils/storage";
 import { useVideoPlayer, VideoView } from "expo-video";
+import Header from "../components/Header";
 
 export default function ImageGridScreen() {
     const navigation = useNavigation();
@@ -97,50 +98,42 @@ export default function ImageGridScreen() {
         ]);
     };
 
-const formatDate = (input) => {
-  if (!input) return "";
+    const formatDate = (input) => {
+    if (!input) return "";
 
-  // CASE 1: input is "YYYY-MM-DD"
-  const match = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) {
-    const [_, y, m, d] = match;
-    const date = new Date(Number(y), Number(m) - 1, Number(d)); // local date
-    return date.toLocaleDateString("en-CA", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
+    // CASE 1: input is "YYYY-MM-DD"
+    const match = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+        const [_, y, m, d] = match;
+        const date = new Date(Number(y), Number(m) - 1, Number(d)); // local date
+        return date.toLocaleDateString("en-CA", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        });
+    }
 
-  // CASE 2: input is ISO timestamp or epoch
-  const parsed = Date.parse(input);
-  if (!isNaN(parsed)) {
-    const date = new Date(parsed);
-    return date.toLocaleString("en-CA", {
-      timeZone: "America/Vancouver",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  }
+    // CASE 2: input is ISO timestamp or epoch
+    const parsed = Date.parse(input);
+    if (!isNaN(parsed)) {
+        const date = new Date(parsed);
+        return date.toLocaleString("en-CA", {
+        timeZone: "America/Vancouver",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        });
+    }
 
-  return "";
-};
-
-
+    return "";
+    };
 
     return (
         <View style={styles.container}>
-            <View style={styles.topBar}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Feather name="arrow-left" size={26} color="black" />
-                </TouchableOpacity>
-                <Text style={styles.title}>All Images</Text>
-            </View>
-
+            <Header isBackOnly />
             <FlatList
                 data={list}
                 keyExtractor={(item) => item.uri}
