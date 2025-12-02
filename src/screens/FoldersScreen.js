@@ -136,10 +136,10 @@ export default function FoldersScreen() {
               </View>
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
-                  style={styles.modalButton}
+                  style={[styles.modalButton, { backgroundColor: "#000" }]}
                   onPress={addFolder}
                 >
-                  <Text>Create</Text>
+                  <Text style={{ color: '#fff' }}>Create</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.modalButton}

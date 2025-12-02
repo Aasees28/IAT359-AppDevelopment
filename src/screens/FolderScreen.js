@@ -716,7 +716,7 @@ export const styles = StyleSheet.create({
     },
     expanded: {
         width: '100%',
-        aspectRatio: 1,
+        height: '80%',
     },
     plusBox: {
         width: 100,

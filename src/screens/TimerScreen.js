@@ -314,11 +314,6 @@ export default function TimerScreen() {
     );
   };
 
-  const spin = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  })
-
   return (
     <View style={styles.container}>
       <Header title="Timer" />
@@ -560,6 +555,7 @@ const styles = StyleSheet.create({
   // ---- Containers ----
   container: {
     flex: 1,
+    backgroundColor: "#fff",
   },
   outerContainer: {
     flex: 1,
@@ -577,7 +573,6 @@ const styles = StyleSheet.create({
   outerPaused: {
     backgroundColor: '#fbffafff',
   },
-
   frame: {
     flex: 1,
     width: '92%',
@@ -677,12 +672,10 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: '800',
   },
-
-    shadowFocus: {
+  shadowFocus: {
     shadowColor: '#8ecf63',
     shadowOpacity: 0.4,
     shadowRadius: 10,
-
   },
 
   shadowRest: {
@@ -720,7 +713,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#64b365ff",
   },
 
-    editButton: {
+  editButton: {
     backgroundColor: '#aeadadff',
   },
 
@@ -887,7 +880,6 @@ const styles = StyleSheet.create({
     height: LINE_LENGTH + 20 ,
     backgroundColor: '#2c2121ff',
     borderRadius: 10,
-
     transform: [{ translateY: -LINE_LENGTH / 2 }],
   },
 
