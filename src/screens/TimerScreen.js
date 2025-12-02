@@ -37,6 +37,7 @@ export default function TimerScreen() {
   const flatListRef = useRef(null);
   const [currentOffset, setCurrentOffset] = useState(0);
 
+  // Runs when this screen comes into focus (user navigates back to it)
   useFocusEffect(
     useCallback(() => {
       const fetchFolders = async () => {
@@ -55,6 +56,7 @@ export default function TimerScreen() {
     }, [])
   );
 
+  // Saves a new Pomodoro session entry into AsyncStorage
   const saveHistory = async (entry) => {
     try {
       const existing = await AsyncStorage.getItem("pomodoroHistory");
@@ -68,6 +70,7 @@ export default function TimerScreen() {
     }
   };
 
+  // Converts total seconds into HH:MM:SS format for display on the timer
   const formatTime = (secs) => {
     const hh = Math.floor(secs / 3600);
     const mm = Math.floor((secs % 3600) / 60);
@@ -76,10 +79,14 @@ export default function TimerScreen() {
     return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
   };
 
+  // Calculates total focus session time in seconds (from hours + minutes)
   const getFocusSeconds = () =>
     parseInt(focusHours || 0) * 3600 + parseInt(focusMinutes || 0) * 60;
+
+  // Calculates total rest session time in seconds
   const getRestSeconds = () => parseInt(restMinutes || 0) * 60;
 
+  // Handles starting the timer
   const handleStart = async () => {
     if (!selectedFolder) {
       Alert.alert(
@@ -106,7 +113,6 @@ export default function TimerScreen() {
       return;
     }
 
-    // Normal start flow if folder is selected
     if (session === 'idle' || session === 'rest') {
       setSession('focus');
       setSecondsLeft(getFocusSeconds());
@@ -120,11 +126,13 @@ export default function TimerScreen() {
     await AsyncStorage.setItem('activeFolder', selectedFolder.name);
   };
 
+  // Pauses the timer
   const handlePause = () => {
     setIsPaused(true);
     setIsRunning(false);
   };
 
+  // Resumes the timer from pause
   const handleResume = () => {
     if (session === 'idle') {
       handleStart();
@@ -134,6 +142,7 @@ export default function TimerScreen() {
     setIsRunning(true);
   };
 
+  // Switches between focus and rest sessions
   const switchSession = (from) => {
     if (from === 'focus') {
       setSession('rest');
@@ -146,6 +155,7 @@ export default function TimerScreen() {
     setIsPaused(false);
   };
 
+  // Skips the current session
   const handleSkip = () => {
     if (session === 'idle') {
       setSession('rest');
@@ -157,6 +167,7 @@ export default function TimerScreen() {
     switchSession(session);
   };
 
+// Loads saved Pomodoro history when the screen first mounts
   useEffect(() => {
     const loadHistory = async () => {
       const existing = await AsyncStorage.getItem("pomodoroHistory");
@@ -166,6 +177,7 @@ export default function TimerScreen() {
     loadHistory();
   }, []);
 
+  // Loads total focused minutes for the current day
   useEffect(() => {
     const loadDailyTotal = async () => {
       const today = new Date().toISOString().split("T")[0];
@@ -177,6 +189,7 @@ export default function TimerScreen() {
     loadDailyTotal();
   }, []);
 
+  // Controls the timer interval when isRunning changes
   useEffect(() => {
     if (isRunning) {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -193,6 +206,7 @@ export default function TimerScreen() {
     };
   }, [isRunning]);
 
+  // Runs when time hits 0 and session is either focus or rest
   useEffect(() => {
     if (
       secondsLeft <= 0 &&
@@ -243,6 +257,7 @@ export default function TimerScreen() {
     }
   }, [secondsLeft, session, isRunning, isPaused]);
 
+  // Gets total seconds for the current session type
   const getTotalSeconds = () => {
     if (session === 'focus') {
       return (
@@ -263,6 +278,7 @@ export default function TimerScreen() {
     return 1
   }
 
+  // Updates animation progress ring for timer
   useEffect(() => {
     const total = getTotalSeconds()
     if (!total) return
@@ -277,7 +293,7 @@ export default function TimerScreen() {
 
   }, [secondsLeft, session])
 
-
+  // Warns user that changing folder will reset the timer
   const alertResetFolder = (newFolder) => {
     Alert.alert(
       'Reset Timer?',
@@ -298,6 +314,7 @@ export default function TimerScreen() {
     );
   };
 
+  // Displays goal progress bar
   const GoalProgressBar = ({ total, goal }) => {
     const percentage = Math.min((total / goal) * 100, 100);
 
